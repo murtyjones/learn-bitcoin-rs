@@ -75,6 +75,12 @@ mod tests {
     use serde_test;
 
     #[test]
+    fn test_fmt() {
+        let sat = Amount::from_sat;
+        assert_eq!(format!("{:?}", sat(15)), "Amount(15 satoshi)");
+    }
+
+    #[test]
     fn test_add_subtract_multiply_divide() {
         let sat = Amount::from_sat;
 
