@@ -53,9 +53,14 @@ impl Amount {
         self.0.checked_rem(rhs).map(Amount)
     }
 
-    /// The max allowed value of a SignedAmount
+    /// The max allowed value of a Amount
     pub fn max_value() -> Amount {
         Amount(u64::max_value())
+    }
+
+    /// The min allowed value of a Amount
+    pub fn min_value() -> Amount {
+        Amount(u64::min_value())
     }
 }
 
@@ -202,6 +207,11 @@ impl SignedAmount {
     /// The max allowed value of a SignedAmount
     pub fn max_value() -> SignedAmount {
         SignedAmount(i64::max_value())
+    }
+
+    /// The min allowed value of a SignedAmount
+    pub fn min_value() -> SignedAmount {
+        SignedAmount(i64::min_value())
     }
 }
 
@@ -359,5 +369,22 @@ mod tests {
         assert!(result.is_err());
         let result = panic::catch_unwind(|| Amount::from_sat(8446744073709551615) * 3);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_checked_arithmetic() {
+        let sat = Amount::from_sat;
+        let ssat = SignedAmount::from_sat;
+
+        assert_eq!(sat(42).checked_add(sat(1)), Some(sat(43)));
+        assert_eq!(SignedAmount::max_value().checked_add(ssat(1)), None);
+        assert_eq!(SignedAmount::min_value().checked_sub(ssat(1)), None);
+        assert_eq!(Amount::max_value().checked_add(sat(1)), None);
+        assert_eq!(Amount::min_value().checked_sub(sat(1)), None);
+
+        assert_eq!(sat(5).checked_sub(sat(3)), Some(sat(2)));
+        assert_eq!(sat(5).checked_sub(sat(6)), None);
+        assert_eq!(ssat(5).checked_sub(ssat(6)), Some(ssat(-1)));
+        assert_eq!(sat(5).checked_rem(2), Some(sat(1)));
     }
 }
