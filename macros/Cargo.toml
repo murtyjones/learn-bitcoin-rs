@@ -1,9 +1,12 @@
 [package]
-name = "learn-bitcoin-rs"
+name = "learn-bitcoin-rs-macros"
 version = "0.1.0"
 authors = ["Martin Jones <murtin.jones@gmail.com>"]
 edition = "2018"
 
+[lib]
+proc-macro = true
+
 [dependencies]
-learn-bitcoin-rs-macros = { path = "macros" }
-learn-bitcoin-rs-lib = { path = "src" }
+quote = "0.6.3"
+syn = "0.14.4"

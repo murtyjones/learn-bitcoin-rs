@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 /// Can be used to represent Bitcoin amounts. Supports
 /// arithmatic operations.
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, SharedAmountTraits)]
 pub struct Amount(u64);
 
 impl Amount {
@@ -20,12 +20,6 @@ impl Amount {
     /// Get the number of satoshis
     pub fn as_sat(self) -> u64 {
         self.0
-    }
-
-    /// Performs a 'checked' addition. Returns `None` if an overflow occurs.
-    /// @see https://rust-num.github.io/num/num_traits/ops/checked/trait.CheckedAdd.html
-    pub fn checked_add(self, rhs: Amount) -> Option<Amount> {
-        self.0.checked_add(rhs.0).map(Amount)
     }
 
     /// Performs a 'checked' substrction. Returns `None` if an overflow occurs.
@@ -61,46 +55,6 @@ impl Amount {
     /// The min allowed value of a Amount
     pub fn min_value() -> Amount {
         Amount(u64::min_value())
-    }
-}
-
-/// Implements the `+` operator using a checked addition for Amount instances.
-impl ops::Add for Amount {
-    /// bitcoin-rs uses `type Output = Amount;` here for some reason:
-    type Output = Self;
-
-    fn add(self, rhs: Amount) -> Self::Output {
-        self.checked_add(rhs).expect("Whoops! Addition error")
-    }
-}
-
-/// Allows `+=`
-impl ops::AddAssign for Amount {
-    fn add_assign(&mut self, other: Amount) {
-        *self = *self + other
-    }
-}
-
-/// Allows us to subtract one Amount from another using `-`
-impl ops::Sub for Amount {
-    type Output = Self;
-
-    fn sub(self, rhs: Amount) -> Self::Output {
-        self.checked_sub(rhs).expect("Whoops! Subtraction error")
-    }
-}
-
-/// Allows `-=`
-impl ops::SubAssign for Amount {
-    fn sub_assign(&mut self, other: Amount) {
-        *self = *self - other
-    }
-}
-
-/// Allows us to compare Amounts using `==`
-impl PartialEq for Amount {
-    fn eq(&self, other: &Amount) -> bool {
-        PartialEq::eq(&self.0, &other.0)
     }
 }
 
@@ -159,7 +113,7 @@ impl ops::RemAssign<u64> for Amount {
     }
 }
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, SharedAmountTraits)]
 pub struct SignedAmount(i64);
 
 impl SignedAmount {
@@ -171,12 +125,6 @@ impl SignedAmount {
     /// Get the number of satoshis
     pub fn as_sat(self) -> i64 {
         self.0
-    }
-
-    /// Performs a 'checked' addition. Returns `None` if an overflow occurs.
-    /// @see https://rust-num.github.io/num/num_traits/ops/checked/trait.CheckedAdd.html
-    pub fn checked_add(self, rhs: SignedAmount) -> Option<SignedAmount> {
-        self.0.checked_add(rhs.0).map(SignedAmount)
     }
 
     /// Performs a 'checked' substrction. Returns `None` if an overflow occurs.
@@ -212,46 +160,6 @@ impl SignedAmount {
     /// The min allowed value of a SignedAmount
     pub fn min_value() -> SignedAmount {
         SignedAmount(i64::min_value())
-    }
-}
-
-/// Implements the `+` operator using a checked addition for SignedAmount instances.
-impl ops::Add for SignedAmount {
-    /// bitcoin-rs uses `type Output = SignedAmount;` here for some reason:
-    type Output = Self;
-
-    fn add(self, rhs: SignedAmount) -> Self::Output {
-        self.checked_add(rhs).expect("Whoops! Addition error")
-    }
-}
-
-/// Allows `+=`
-impl ops::AddAssign for SignedAmount {
-    fn add_assign(&mut self, other: SignedAmount) {
-        *self = *self + other
-    }
-}
-
-/// Allows us to subtract one SignedAmount from another using `-`
-impl ops::Sub for SignedAmount {
-    type Output = Self;
-
-    fn sub(self, rhs: SignedAmount) -> Self::Output {
-        self.checked_sub(rhs).expect("Whoops! Subtraction error")
-    }
-}
-
-/// Allows `-=`
-impl ops::SubAssign for SignedAmount {
-    fn sub_assign(&mut self, other: SignedAmount) {
-        *self = *self - other
-    }
-}
-
-/// Allows us to compare SignedAmounts using `==`
-impl PartialEq for SignedAmount {
-    fn eq(&self, other: &SignedAmount) -> bool {
-        PartialEq::eq(&self.0, &other.0)
     }
 }
 
@@ -330,7 +238,7 @@ mod tests {
         let sat = Amount::from_sat;
         let ssat = SignedAmount::from_sat;
 
-        // Basic arithmetic
+        // Basic arithmatic
         assert_eq!(sat(15) + sat(15), sat(30));
         assert_eq!(sat(15) - sat(15), sat(0));
         assert_eq!(sat(15) * 10, sat(150));
@@ -372,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    fn test_checked_arithmetic() {
+    fn test_checked_arithmatic() {
         let sat = Amount::from_sat;
         let ssat = SignedAmount::from_sat;
 
