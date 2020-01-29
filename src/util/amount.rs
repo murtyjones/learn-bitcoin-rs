@@ -7,7 +7,7 @@ use std::str::FromStr;
 /// TODO there should be a way to implement a build script for this and for SignedAmount
 
 /// Can be used to represent Bitcoin amounts. Supports
-/// arithmatic operations.
+/// arithmetic operations.
 #[derive(Copy, Clone, Hash, SharedAmountTraits)]
 pub struct Amount(u64);
 
@@ -238,7 +238,7 @@ mod tests {
         let sat = Amount::from_sat;
         let ssat = SignedAmount::from_sat;
 
-        // Basic arithmatic
+        // Basic arithmetic
         assert_eq!(sat(15) + sat(15), sat(30));
         assert_eq!(sat(15) - sat(15), sat(0));
         assert_eq!(sat(15) * 10, sat(150));
@@ -280,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    fn test_checked_arithmatic() {
+    fn test_checked_arithmetic() {
         let sat = Amount::from_sat;
         let ssat = SignedAmount::from_sat;
 

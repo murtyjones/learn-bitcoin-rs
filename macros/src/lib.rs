@@ -8,7 +8,7 @@ use proc_macro::TokenStream;
 use syn::Type::Path;
 
 #[proc_macro_derive(SharedAmountTraits)]
-pub fn arithmatic_derive(input: TokenStream) -> TokenStream {
+pub fn arithmetic_derive(input: TokenStream) -> TokenStream {
     impl_formulate(&syn::parse(input).unwrap())
 }
 
