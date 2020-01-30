@@ -72,6 +72,8 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
             .into();
     }
 
+    let struct_name_string = struct_name.to_string();
+
     let gen = quote! {
         impl #struct_name {
             /// Creates an Amount/SignedAmount object from a given number of satoshis
@@ -116,6 +118,13 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
             /// The min allowed value of a Amount
             pub fn min_value() -> #struct_name {
                 #struct_name(#num_type::min_value())
+            }
+        }
+
+        /// Allows us to display amounts for Satoshis and compare them in tests
+        impl fmt::Debug for #struct_name {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{}({} satoshi)", #struct_name_string, self.as_sat())
             }
         }
 

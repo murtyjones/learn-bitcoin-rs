@@ -8,22 +8,8 @@ use std::ops;
 #[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct Amount(u64);
 
-/// Allows us to display amounts for Satoshis and compare them in tests
-impl fmt::Debug for Amount {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Amount({} satoshi)", self.as_sat())
-    }
-}
-
 #[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct SignedAmount(i64);
-
-/// Allows us to display amounts for Satoshis and compare them in tests
-impl fmt::Debug for SignedAmount {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SignedAmount({} satoshi)", self.as_sat())
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -37,7 +23,9 @@ mod tests {
     #[test]
     fn test_fmt() {
         let sat = Amount::from_sat;
+        let ssat = SignedAmount::from_sat;
         assert_eq!(format!("{:?}", sat(15)), "Amount(15 satoshi)");
+        assert_eq!(format!("{:?}", ssat(15)), "SignedAmount(15 satoshi)");
     }
 
     #[test]
