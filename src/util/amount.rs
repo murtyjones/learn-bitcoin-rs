@@ -1,14 +1,11 @@
-use std::default;
-use std::error;
-use std::fmt::{self, Write};
+use std::fmt::{self};
 use std::ops;
-use std::str::FromStr;
 
 /// TODO there should be a way to implement a build script for this and for SignedAmount
 
 /// Can be used to represent Bitcoin amounts. Supports
 /// arithmetic operations.
-#[derive(Copy, Clone, Hash, PartialEq, SharedAmountTraits)]
+#[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct Amount(u64);
 
 /// Allows us to display amounts for Satoshis and compare them in tests
@@ -18,7 +15,7 @@ impl fmt::Debug for Amount {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, SharedAmountTraits)]
+#[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct SignedAmount(i64);
 
 /// Allows us to display amounts for Satoshis and compare them in tests
@@ -104,5 +101,7 @@ mod tests {
         assert_eq!(sat(5).checked_sub(sat(6)), None);
         assert_eq!(ssat(5).checked_sub(ssat(6)), Some(ssat(-1)));
         assert_eq!(sat(5).checked_rem(2), Some(sat(1)));
+
+        assert_eq!(sat(5).checked_div(2), Some(sat(2)));
     }
 }

@@ -6,10 +6,10 @@ extern crate quote;
 extern crate core;
 
 use proc_macro::TokenStream;
+use syn::Error;
 use syn::Type::Path;
-use syn::{parse_macro_input, DeriveInput, Error};
 
-#[proc_macro_derive(SharedAmountTraits)]
+#[proc_macro_derive(SatoshiArithmetic)]
 pub fn arithmetic_derive(input: TokenStream) -> TokenStream {
     impl_formulate(&syn::parse(input).unwrap())
 }
