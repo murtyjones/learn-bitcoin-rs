@@ -1,4 +1,5 @@
 extern crate proc_macro;
+
 extern crate syn;
 #[macro_use]
 extern crate quote;
@@ -6,6 +7,7 @@ extern crate core;
 
 use proc_macro::TokenStream;
 use syn::Type::Path;
+use syn::{parse_macro_input, DeriveInput, Error};
 
 #[proc_macro_derive(SharedAmountTraits)]
 pub fn arithmetic_derive(input: TokenStream) -> TokenStream {
@@ -15,23 +17,48 @@ pub fn arithmetic_derive(input: TokenStream) -> TokenStream {
 fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
     let struct_name = &ast.ident;
     let data = match &ast.data {
-        syn::Data::Struct(struct_data) => struct_data,
-        _ => panic!("not a struct"),
+        syn::Data::Struct(struct_data) => Some(struct_data),
+        _ => None,
     };
-    let fields = match &data.fields {
-        syn::Fields::Unnamed(unnamed_fields) => unnamed_fields,
-        _ => panic!("this only works for tuple structs"),
+    if data.is_none() {
+        return Error::new(ast.ident.span(), "Only works for structs!")
+            .to_compile_error()
+            .into();
+    }
+    let fields = match &data.unwrap().fields {
+        syn::Fields::Unnamed(unnamed_fields) => Some(unnamed_fields),
+        _ => None,
     };
-    let i64oru64 = match &fields
-        .unnamed
-        .iter()
-        .next()
-        .expect("This tuple struct must have at least one field!")
-        .ty
-    {
-        Path(path) => path,
-        _ => panic!("not a path"),
+    if fields.is_none() {
+        return Error::new(ast.ident.span(), "Only work for tuple structs!")
+            .to_compile_error()
+            .into();
+    }
+
+    let field = &fields.unwrap().unnamed.iter().next();
+    if field.is_none() {
+        return Error::new(
+            ast.ident.span(),
+            "This tuple struct must have at least one field!",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    let field_type = &field.unwrap().ty;
+
+    let i64oru64 = match field_type {
+        Path(path) => Some(path),
+        _ => None,
     };
+
+    if i64oru64.is_none() {
+        return Error::new(ast.ident.span(), "expected a path in this struct!")
+            .to_compile_error()
+            .into();
+    }
+
+    let i64oru64 = i64oru64.unwrap();
 
     // "i64" or "u64"
     let num_type = &i64oru64.path.segments.iter().next().unwrap().ident;
@@ -39,6 +66,11 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
         &num_type.to_string() == "i64" || &num_type.to_string() == "u64",
         "This macro only works for i64/u64"
     );
+    if &num_type.to_string() != "i64" && &num_type.to_string() != "u64" {
+        return Error::new(num_type.span(), "expected u64 or i64")
+            .to_compile_error()
+            .into();
+    }
 
     let gen = quote! {
         impl #struct_name {
