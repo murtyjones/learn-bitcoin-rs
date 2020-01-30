@@ -11,6 +11,24 @@ pub struct Amount(u64);
 #[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct SignedAmount(i64);
 
+impl SignedAmount {
+    /// Subtraction that doesn't allow negative [SignedAmount]s.
+    /// Returns [None] if either [self], [rhs] or the result is strictly negative.
+    pub fn positive_sub(self, rhs: SignedAmount) -> Option<SignedAmount> {
+        if self.is_negative() || rhs.is_negative() || rhs > self {
+            None
+        } else {
+            self.checked_sub(rhs)
+        }
+    }
+
+    /// Returns `true` if this [SignedAmount] is negative and `false` if
+    /// this
+    pub fn is_negative(self) -> bool {
+        self.0.is_negative()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,5 +109,12 @@ mod tests {
         assert_eq!(sat(5).checked_rem(2), Some(sat(1)));
 
         assert_eq!(sat(5).checked_div(2), Some(sat(2)));
+        assert_eq!(ssat(-5).checked_div(2), Some(ssat(-2)));
+
+        assert_eq!(ssat(-5).positive_sub(ssat(3)), None);
+        assert_eq!(ssat(5).positive_sub(ssat(-3)), None);
+        assert_eq!(ssat(3).positive_sub(ssat(5)), None);
+        assert_eq!(ssat(3).positive_sub(ssat(3)), Some(ssat(0)));
+        assert_eq!(ssat(5).positive_sub(ssat(3)), Some(ssat(2)));
     }
 }

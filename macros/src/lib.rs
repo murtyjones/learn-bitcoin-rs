@@ -76,7 +76,7 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
 
     let gen = quote! {
         impl #struct_name {
-            /// Creates an Amount/SignedAmount object from a given number of satoshis
+            /// Creates an [Amount]|[SignedAmount] object from a given number of satoshis
             pub fn from_sat(satoshis: #num_type) -> #struct_name {
                 #struct_name(satoshis)
             }
@@ -110,12 +110,12 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
             pub fn checked_rem(self, rhs: #num_type) -> Option<#struct_name> {
                 self.0.checked_rem(rhs).map(#struct_name)
             }
-            /// The max allowed value of a Amount
+            /// The max allowed value of a [Amount]|[SignedAmount]
             pub fn max_value() -> #struct_name {
                 #struct_name(#num_type::max_value())
             }
 
-            /// The min allowed value of a Amount
+            /// The min allowed value of a [Amount]|[SignedAmount]
             pub fn min_value() -> #struct_name {
                 #struct_name(#num_type::min_value())
             }
@@ -207,6 +207,21 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
                 *self = *self % other
             }
         }
+
+        /// Allows comparison of [Amount]|[SignedAmount] using `<` `>`
+        impl PartialOrd for #struct_name {
+            fn partial_cmp(&self, other: &#struct_name) -> Option<::std::cmp::Ordering> {
+                PartialOrd::partial_cmp(&self.0, &other.0)
+            }
+        }
+
+        impl Ord for #struct_name {
+            fn cmp(&self, other: &#struct_name) -> ::std::cmp::Ordering {
+                Ord::cmp(&self.0, &other.0)
+            }
+        }
+
+        impl Eq for #struct_name {}
     };
     gen.into()
 }
