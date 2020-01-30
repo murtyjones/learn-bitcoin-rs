@@ -8,15 +8,10 @@ use std::str::FromStr;
 
 /// Can be used to represent Bitcoin amounts. Supports
 /// arithmetic operations.
-#[derive(Copy, Clone, Hash, SharedAmountTraits)]
+#[derive(Copy, Clone, Hash, PartialEq, SharedAmountTraits)]
 pub struct Amount(u64);
 
 impl Amount {
-    /// Creates an Amount object from a given number of satoshis
-    pub fn from_sat(satoshis: u64) -> Amount {
-        Amount(satoshis)
-    }
-
     /// Get the number of satoshis
     pub fn as_sat(self) -> u64 {
         self.0
@@ -113,15 +108,10 @@ impl ops::RemAssign<u64> for Amount {
     }
 }
 
-#[derive(Copy, Clone, Hash, SharedAmountTraits)]
+#[derive(Copy, Clone, Hash, PartialEq, SharedAmountTraits)]
 pub struct SignedAmount(i64);
 
 impl SignedAmount {
-    /// Creates an Amount object from a given number of satoshis
-    pub fn from_sat(satoshis: i64) -> SignedAmount {
-        SignedAmount(satoshis)
-    }
-
     /// Get the number of satoshis
     pub fn as_sat(self) -> i64 {
         self.0

@@ -34,21 +34,18 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
     };
 
     // "i64" or "u64"
-    let num_type = i64oru64
-        .path
-        .segments
-        .iter()
-        .next()
-        .unwrap()
-        .ident
-        .to_string();
+    let num_type = &i64oru64.path.segments.iter().next().unwrap().ident;
     assert!(
-        &num_type == "i64" || &num_type == "u64",
+        &num_type.to_string() == "i64" || &num_type.to_string() == "u64",
         "This macro only works for i64/u64"
     );
 
     let gen = quote! {
         impl #struct_name {
+            /// Creates an Amount/SignedAmount object from a given number of satoshis
+            pub fn from_sat(satoshis: #num_type) -> #struct_name {
+                #struct_name(satoshis)
+            }
             /// Performs a 'checked' addition. Returns `None` if an overflow occurs.
             /// @see https://rust-num.github.io/num/num_traits/ops/checked/trait.CheckedAdd.html
             pub fn checked_add(self, rhs: #struct_name) -> Option<#struct_name> {
@@ -85,13 +82,6 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
         impl ops::SubAssign for #struct_name {
             fn sub_assign(&mut self, other: #struct_name) {
                 *self = *self - other
-            }
-        }
-
-        /// Allows us to compare Amounts using `==`
-        impl PartialEq for #struct_name {
-            fn eq(&self, other: &#struct_name) -> bool {
-                PartialEq::eq(&self.0, &other.0)
             }
         }
     };
