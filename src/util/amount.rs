@@ -150,6 +150,8 @@ fn parse_signed_to_satoshi(
     }
 
     let is_negative = s.chars().next().unwrap() == '-';
+    // If negative, either return an error (if the `-` is the
+    // only character) or remove the `-` and continue parsing
     if is_negative {
         if s.len() == 1 {
             return Err(ParseAmountError::InvalidFormat);
@@ -181,10 +183,20 @@ fn parse_signed_to_satoshi(
     let mut value: u64 = 0; // as satoshis
     for c in s.chars() {
         match c {
-            '0'..'9' => match 10_u64.checked_mul(value) {
-                None => return Err(ParseAmountError::TooBig),
-                Some(val) => value = val,
-            },
+            '0'..'9' => {
+                match 10_u64.checked_mul(value) {
+                    None => return Err(ParseAmountError::TooBig),
+                    Some(val) => match val.checked_add((c as u8 - b'0') as u64) {
+                        None => return Err(ParseAmountError::TooBig),
+                        Some(val) => value = val,
+                    },
+                }
+                decimals = match decimals {
+                    None => None,
+                    Some(d) if d < max_decimals => Some(d + 1),
+                    _ => return Err(ParseAmountError::TooPrecise),
+                };
+            }
             '.' => match decimals {
                 None => decimals = Some(0),
                 // double decimal dot
@@ -304,7 +316,47 @@ mod tests {
     fn test_parse_signed_to_satoshi() {
         assert_eq!(
             parse_signed_to_satoshi("1", Denomination::Bitcoin).unwrap(),
-            (false, 1)
+            (false, 100000000)
+        );
+        assert_eq!(
+            parse_signed_to_satoshi("-1", Denomination::Bitcoin).unwrap(),
+            (true, 100000000)
+        );
+        assert_eq!(
+            parse_signed_to_satoshi("-100", Denomination::Bitcoin).unwrap(),
+            (true, 10000000000)
+        );
+        assert_eq!(
+            parse_signed_to_satoshi("100", Denomination::MilliSatoshi).unwrap(),
+            (false, 100000)
+        );
+        assert_eq!(
+            parse_signed_to_satoshi(".0000100", Denomination::Satoshi).unwrap_err(),
+            ParseAmountError::TooPrecise
+        );
+        assert_eq!(
+            parse_signed_to_satoshi("-", Denomination::Satoshi).unwrap_err(),
+            ParseAmountError::InvalidFormat
+        );
+        assert_eq!(
+            parse_signed_to_satoshi("", Denomination::Satoshi).unwrap_err(),
+            ParseAmountError::InvalidFormat
+        );
+        assert_eq!(
+            parse_signed_to_satoshi(
+                "100000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                Denomination::Satoshi
+            )
+            .unwrap_err(),
+            ParseAmountError::InputTooLarge
+        );
+        assert_eq!(
+            parse_signed_to_satoshi("1..0", Denomination::Satoshi).unwrap_err(),
+            ParseAmountError::InvalidFormat
+        );
+        assert_eq!(
+            parse_signed_to_satoshi("c", Denomination::Satoshi).unwrap_err(),
+            ParseAmountError::InvalidCharacters("c".chars().next().unwrap())
         );
     }
 
