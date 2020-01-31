@@ -1,7 +1,85 @@
 use std::fmt::{self};
 use std::ops;
+use std::str::FromStr;
 
-/// TODO there should be a way to implement a build script for this and for SignedAmount
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum Denomination {
+    // BTC
+    Bitcoin,
+    // mBTC
+    MilliBitcoin,
+    // uBTC
+    MicroBitcoin,
+    // bits
+    Bit,
+    // msat
+    Satoshi,
+    // msat
+    MilliSatoshi,
+}
+
+impl Denomination {
+    /// The number of decimal places more than a satoshi
+    fn precision(self) -> i32 {
+        match self {
+            Denomination::Bitcoin => -8,
+            Denomination::MilliBitcoin => -5,
+            Denomination::MicroBitcoin => -2,
+            Denomination::Bit => -2,
+            Denomination::Satoshi => 0,
+            Denomination::MilliSatoshi => -3,
+        }
+    }
+}
+
+impl fmt::Display for Denomination {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            Denomination::Bitcoin => "BTC",
+            Denomination::MilliBitcoin => "mBTC",
+            Denomination::MicroBitcoin => "uBTC",
+            Denomination::Bit => "bits",
+            Denomination::Satoshi => "satoshi",
+            Denomination::MilliSatoshi => "msat",
+        })
+    }
+}
+
+/// E.g. let money: Denomination = "BTC".into();
+impl FromStr for Denomination {
+    type Err = ParseAmountError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "BTC" => Ok(Denomination::Bitcoin),
+            "mBTC" => Ok(Denomination::MilliBitcoin),
+            "uBTC" => Ok(Denomination::MicroBitcoin),
+            "bits" => Ok(Denomination::Bit),
+            "satoshi" => Ok(Denomination::Satoshi),
+            "sat" => Ok(Denomination::Satoshi),
+            "msat" => Ok(Denomination::MilliSatoshi),
+            d => Err(ParseAmountError::UnknownDenomination(d.to_owned())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseAmountError {
+    /// Amount is negative
+    Negative,
+    /// Amount is too big to fit inside of the type
+    TooBig,
+    /// Amount has higher-than-supported decimal precision
+    TooPrecise,
+    /// Invalid number format
+    InvalidFormat,
+    /// Input string was too large
+    InputTooLarge,
+    /// Invalid char in input string
+    InvalidCharacters(char),
+    /// The denomination didn't match our known ones
+    UnknownDenomination(String),
+}
 
 /// Can be used to represent Bitcoin amounts. Supports
 /// arithmetic operations.
@@ -27,6 +105,110 @@ impl SignedAmount {
     pub fn is_negative(self) -> bool {
         self.0.is_negative()
     }
+
+    /// Parse a decimal string as a value in a given denomination
+    ///
+    /// Note: This only parses the string value. If you want to parse
+    /// a value with denomination, use [FromStr]
+    pub fn from_str_in(s: &str, denom: Denomination) -> Result<SignedAmount, ParseAmountError> {
+        let (negative, satoshi) = parse_signed_to_satoshi(s, denom)?;
+        if satoshi > i64::max_value() as u64 {
+            return Err(ParseAmountError::TooBig);
+        }
+        Ok(match negative {
+            true => SignedAmount(-1 * satoshi as i64),
+            false => SignedAmount(satoshi as i64),
+        })
+    }
+
+    /// Convert this [SignedAmount] in a floating-point notatino with a
+    /// given denomination.
+    /// Can return an error if the amount is too big, too precise, etc.
+    ///
+    /// TODO figure out what the risk of using this is? From rust-bitcoin:
+    /// "Please be aware of the risk of using floating-point numbers."
+    pub fn from_float_in(
+        value: f64,
+        denom: Denomination,
+    ) -> Result<SignedAmount, ParseAmountError> {
+        SignedAmount::from_str_in(&value.to_string(), denom)
+    }
+}
+
+/// Parses a decimal string in the given denomination into a satoshi value
+/// and a boolean that indicates whether it's a negative amount
+fn parse_signed_to_satoshi(
+    mut s: &str,
+    denom: Denomination,
+) -> Result<(bool, u64), ParseAmountError> {
+    if s.len() == 0 {
+        return Err(ParseAmountError::InvalidFormat);
+    }
+    // TODO why is 50 the max?
+    if s.len() > 50 {
+        return Err(ParseAmountError::InputTooLarge);
+    }
+
+    let is_negative = s.chars().next().unwrap() == '-';
+    if is_negative {
+        if s.len() == 1 {
+            return Err(ParseAmountError::InvalidFormat);
+        }
+        s = &s[1..];
+    }
+
+    let max_decimals = {
+        // The difference in precision between native (satoshi)
+        // and desired denomation.
+        let precision_diff = -denom.precision();
+        if precision_diff < 0 {
+            // If the precision diff is negative this means we're prasing
+            // into a less percise amount, which is only allowed when there
+            // arent any decimals, and the last digits are just zeroes as many
+            // as is the difference in precision.
+            let last_n = precision_diff.abs() as usize;
+            if is_too_precise(s, last_n) {
+                return Err(ParseAmountError::TooPrecise);
+            }
+            s = &s[0..s.len() - last_n];
+            0
+        } else {
+            precision_diff
+        }
+    };
+
+    let mut decimals = None;
+    let mut value: u64 = 0; // as satoshis
+    for c in s.chars() {
+        match c {
+            '0'..'9' => match 10_u64.checked_mul(value) {
+                None => return Err(ParseAmountError::TooBig),
+                Some(val) => value = val,
+            },
+            '.' => match decimals {
+                None => decimals = Some(0),
+                // double decimal dot
+                _ => return Err(ParseAmountError::InvalidFormat),
+            },
+            c => return Err(ParseAmountError::InvalidCharacters(c)),
+        }
+    }
+
+    let scale_factor = max_decimals - decimals.unwrap_or(0);
+    for _ in 0..scale_factor {
+        value = match 10_u64.checked_mul(value) {
+            Some(v) => v,
+            None => return Err(ParseAmountError::TooBig),
+        };
+    }
+    Ok((is_negative, value))
+}
+
+fn is_too_precise(s: &str, precision: usize) -> bool {
+    // Returns true if the string has a decimal, the given
+    // precision is greater than the length of the string,
+    // or any of the last [precision] characters in the string are not `0`
+    s.contains(".") || precision > s.len() || s.chars().rev().take(precision).any(|d| d != '0')
 }
 
 #[cfg(test)]
@@ -116,5 +298,23 @@ mod tests {
         assert_eq!(ssat(3).positive_sub(ssat(5)), None);
         assert_eq!(ssat(3).positive_sub(ssat(3)), Some(ssat(0)));
         assert_eq!(ssat(5).positive_sub(ssat(3)), Some(ssat(2)));
+    }
+
+    #[test]
+    fn test_parse_signed_to_satoshi() {
+        assert_eq!(
+            parse_signed_to_satoshi("1", Denomination::Bitcoin).unwrap(),
+            (false, 1)
+        );
+    }
+
+    #[test]
+    fn floating_point() {
+        //        use super::Denomination as D;
+        //        let f = Amount::from_float_in;
+        //        let sf = SignedAmount::from_float_in;
+        //        let sat = Amount::from_sat;
+        //        let ssat = SignedAmount::from_sat;
+        // TODO fill out these tests
     }
 }
