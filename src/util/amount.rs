@@ -1,4 +1,4 @@
-use std::fmt::{self};
+use std::fmt::{self, Write};
 use std::ops;
 use std::str::FromStr;
 
@@ -110,6 +110,11 @@ impl Amount {
         // apparently float parsing is tricky due to `halfway cases`
         Amount::from_str_in(&value.to_string(), denom)
     }
+
+    /// Format the value of this [Amount] in the given denomination.
+    pub fn fmt_value_in(&self, f: &mut dyn Write, denom: Denomination) -> fmt::Result {
+        fmt_satoshi_in(self.as_sat(), false, f, denom)
+    }
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
@@ -158,6 +163,11 @@ impl SignedAmount {
         denom: Denomination,
     ) -> Result<SignedAmount, ParseAmountError> {
         SignedAmount::from_str_in(&value.to_string(), denom)
+    }
+
+    /// Format the value of this [SignedAmount] in the given denomination.
+    pub fn fmt_value_in(&self, f: &mut dyn Write, denom: Denomination) -> fmt::Result {
+        fmt_satoshi_in(self.as_sat().abs() as u64, self.is_negative(), f, denom)
     }
 }
 
@@ -248,6 +258,41 @@ fn is_too_precise(s: &str, precision: usize) -> bool {
     // precision is greater than the length of the string,
     // or any of the last [precision] characters in the string are not `0`
     s.contains(".") || precision > s.len() || s.chars().rev().take(precision).any(|d| d != '0')
+}
+
+/// Format the given satoshi amount in the given denomination.
+fn fmt_satoshi_in(
+    satoshi: u64,
+    negative: bool,
+    f: &mut dyn Write,
+    denom: Denomination,
+) -> fmt::Result {
+    if negative {
+        f.write_str("-")?;
+    }
+
+    if denom.precision() > 0 {
+        // add zeroes in the end
+        let width = denom.precision() as usize;
+        write!(f, "{}{:0width$}", satoshi, 0, width = width)?;
+    } else if denom.precision() < 0 {
+        // need to inject a comma in the number
+        let nb_decimals = denom.precision().abs() as usize;
+        let real = format!("{:0width$}", satoshi, width = nb_decimals);
+        if real.len() == nb_decimals {
+            write!(f, "0.{}", &real[real.len() - nb_decimals..])?;
+        } else {
+            write!(
+                f,
+                "{}.{}",
+                &real[0..(real.len() - nb_decimals)],
+                &real[real.len() - nb_decimals..]
+            )?;
+        }
+    } else {
+        write!(f, "{}", satoshi)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -411,7 +456,56 @@ mod tests {
         let sat = Amount::from_sat;
         let ssat = SignedAmount::from_sat;
 
+        // Successful parsing:
         assert_eq!(f(11.22, D::Bitcoin), Ok(sat(1122000000)));
         assert_eq!(sf(-11.22, D::MilliBitcoin), Ok(ssat(-1122000)));
+        assert_eq!(f(11.22, D::Bit), Ok(sat(1122)));
+        assert_eq!(sf(-1000.0, D::MilliSatoshi), Ok(ssat(-1)));
+        assert_eq!(f(0.0001234, D::Bitcoin), Ok(sat(12340)));
+        assert_eq!(sf(-0.00012345, D::Bitcoin), Ok(ssat(-12345)));
+
+        // Failed parsing:
+        assert_eq!(f(-100.0, D::MilliSatoshi), Err(ParseAmountError::Negative));
+        assert_eq!(f(11.22, D::Satoshi), Err(ParseAmountError::TooPrecise));
+        assert_eq!(
+            sf(-100.0, D::MilliSatoshi),
+            Err(ParseAmountError::TooPrecise)
+        );
+        assert_eq!(
+            f(42.123456781, D::Bitcoin),
+            Err(ParseAmountError::TooPrecise)
+        );
+        assert_eq!(
+            sf(-184467440738.0, D::Bitcoin),
+            Err(ParseAmountError::TooBig)
+        );
+        assert_eq!(
+            f(18446744073709551617.0, D::Satoshi),
+            Err(ParseAmountError::TooBig)
+        );
+        assert_eq!(
+            f(
+                SignedAmount::max_value().to_float_in(D::Satoshi) + 1.0,
+                D::Satoshi
+            ),
+            Err(ParseAmountError::TooBig)
+        );
+        assert_eq!(
+            f(
+                Amount::max_value().to_float_in(D::Satoshi) + 1.0,
+                D::Satoshi
+            ),
+            Err(ParseAmountError::TooBig)
+        );
+    }
+
+    #[test]
+    fn test_fmt_satoshi_in() {
+        let mut buf = String::new();
+        fmt_satoshi_in(100, false, &mut buf, Denomination::Satoshi);
+        assert_eq!(buf, "100");
+        let mut buf = String::new();
+        fmt_satoshi_in(1000, true, &mut buf, Denomination::Satoshi);
+        assert_eq!(buf, "-1000");
     }
 }

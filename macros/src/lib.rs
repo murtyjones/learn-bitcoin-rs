@@ -119,6 +119,20 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
             pub fn min_value() -> #struct_name {
                 #struct_name(#num_type::min_value())
             }
+
+            /// Express this [Amount]|[SignedAmount] as a floating-point value in the given denomination.
+            ///
+            /// Be aware of the risk of using floating point numbers
+            pub fn to_float_in(&self, denom: Denomination) -> f64 {
+                f64::from_str(&self.to_string_in(denom)).unwrap()
+            }
+
+            /// Get a string number of this [Amount]|[SignedAmount] in the given denomination.
+            pub fn to_string_in(&self, denom: Denomination) -> String {
+                let mut buf = String::new();
+                self.fmt_value_in(&mut buf, denom).unwrap();
+                buf
+            }
         }
 
         /// Allows us to display amounts for Satoshis and compare them in tests
