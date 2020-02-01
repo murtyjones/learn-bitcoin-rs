@@ -133,6 +133,11 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
                 self.fmt_value_in(&mut buf, denom).unwrap();
                 buf
             }
+
+            /// Convert from a value expressing bitcoins to an [Amount]|[SignedAmount]
+            pub fn from_btc(btc: f64) -> Result<#struct_name, ParseAmountError> {
+                #struct_name::from_float_in(btc, Denomination::Bitcoin)
+            }
         }
 
         /// Allows us to display amounts for Satoshis and compare them in tests
@@ -236,6 +241,13 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
         }
 
         impl Eq for #struct_name {}
+
+        impl fmt::Display for #struct_name {
+            fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+                self.fmt_value_in(f, Denomination::Bitcoin)?;
+                write!(f, " {}", Denomination::Bitcoin)
+            }
+        }
     };
     gen.into()
 }

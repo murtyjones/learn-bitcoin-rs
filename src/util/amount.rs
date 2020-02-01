@@ -1,4 +1,4 @@
-use std::fmt::{self, Write};
+use std::fmt::{self, Display, Formatter, Write};
 use std::ops;
 use std::str::FromStr;
 
@@ -32,8 +32,8 @@ impl Denomination {
     }
 }
 
-impl fmt::Display for Denomination {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Denomination {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.write_str(match self {
             Denomination::Bitcoin => "BTC",
             Denomination::MilliBitcoin => "mBTC",
@@ -497,6 +497,15 @@ mod tests {
             ),
             Err(ParseAmountError::TooBig)
         );
+
+        let btc = move |f| SignedAmount::from_btc(f).unwrap();
+        assert_eq!(btc(2.5).to_float_in(D::Bitcoin), 2.5);
+        assert_eq!(btc(-2.5).to_float_in(D::MilliBitcoin), -2500.0);
+        assert_eq!(btc(2.5).to_float_in(D::Satoshi), 250000000.0);
+        assert_eq!(btc(-2.5).to_float_in(D::MilliSatoshi), -250000000000.0);
+
+        let btc = move |f| Amount::from_btc(f).unwrap();
+        assert_eq!(&btc(0.0012).to_float_in(D::Bitcoin).to_string(), "0.0012");
     }
 
     #[test]
@@ -507,5 +516,32 @@ mod tests {
         let mut buf = String::new();
         fmt_satoshi_in(1000, true, &mut buf, Denomination::Satoshi);
         assert_eq!(buf, "-1000");
+    }
+
+    #[test]
+    fn test_parsing() {
+        use super::ParseAmountError as E;
+        let btc = Denomination::Bitcoin;
+        let p = Amount::from_str_in;
+        let sp = SignedAmount::from_str_in;
+
+        assert_eq!(p("x", btc), Err(E::InvalidCharacter('x')));
+        assert_eq!(p("-", btc), Err(E::InvalidFormat));
+        assert_eq!(sp("-", btc), Err(E::InvalidFormat));
+        assert_eq!(p("-1.0x", btc), Err(E::InvalidCharacter('x')));
+        assert_eq!(p("0.0 ", btc), Err(E::InvalidCharacter(' ')));
+        assert_eq!(p("0.000.000 ", btc), Err(E::InvalidFormat));
+        let more_than_max = format!("1{}", Amount::max_value());
+        assert_eq!(p(&more_than_max, btc), Err(E::TooBig));
+        assert_eq!(p("0.000000042", btc), Err(E::TooPrecise));
+
+        assert_eq!(p("1", btc), Ok(Amount::from_sat(100_000_000)));
+        assert_eq!(sp("-.5", btc), Ok(SignedAmount::from_sat(-50_000_000)));
+        assert_eq!(p("1.1", btc), Ok(Amount::from_sat(110_000_000)));
+        assert_eq!(
+            p("12345678901.12345678", btc),
+            Ok(Amount::from_sat(12_345_678_901__123_456_78))
+        );
+        assert_eq!(p("12", Denomination::MilliSatoshi), Err(E::TooPrecise));
     }
 }
