@@ -328,10 +328,18 @@ mod tests {
             (true, 10000000000)
         );
         assert_eq!(
+            parse_signed_to_satoshi("10000", Denomination::MilliSatoshi).unwrap(),
+            (false, 10)
+        );
+        assert_eq!(
+            // 100 millisatoshis would be like .0001 satoshis or something like that. can't
+            // have fractional satoshis.
             parse_signed_to_satoshi("100", Denomination::MilliSatoshi).unwrap_err(),
             ParseAmountError::TooPrecise
         );
         assert_eq!(
+            // 100 millisatoshis would be like .0000001 satoshis or something like that. can't
+            // have fractional satoshis.
             parse_signed_to_satoshi(".001", Denomination::MilliSatoshi).unwrap_err(),
             ParseAmountError::TooPrecise
         );
