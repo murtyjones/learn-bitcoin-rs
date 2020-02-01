@@ -76,7 +76,7 @@ pub enum ParseAmountError {
     /// Input string was too large
     InputTooLarge,
     /// Invalid char in input string
-    InvalidCharacters(char),
+    InvalidCharacter(char),
     /// The denomination didn't match our known ones
     UnknownDenomination(String),
 }
@@ -203,7 +203,7 @@ fn parse_signed_to_satoshi(
                 // double decimal dot
                 _ => return Err(ParseAmountError::InvalidFormat),
             },
-            c => return Err(ParseAmountError::InvalidCharacters(c)),
+            c => return Err(ParseAmountError::InvalidCharacter(c)),
         }
     }
 
@@ -365,7 +365,7 @@ mod tests {
         );
         assert_eq!(
             parse_signed_to_satoshi("c", Denomination::Satoshi).unwrap_err(),
-            ParseAmountError::InvalidCharacters("c".chars().next().unwrap())
+            ParseAmountError::InvalidCharacter("c".chars().next().unwrap())
         );
     }
 
