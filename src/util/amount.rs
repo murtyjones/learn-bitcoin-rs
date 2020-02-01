@@ -27,7 +27,7 @@ impl Denomination {
             Denomination::MicroBitcoin => -2,
             Denomination::Bit => -2,
             Denomination::Satoshi => 0,
-            Denomination::MilliSatoshi => -3,
+            Denomination::MilliSatoshi => 3,
         }
     }
 }
@@ -164,10 +164,11 @@ fn parse_signed_to_satoshi(
         // and desired denomation.
         let precision_diff = -denom.precision();
         if precision_diff < 0 {
-            // If the precision diff is negative this means we're prasing
-            // into a less percise amount, which is only allowed when there
-            // arent any decimals, and the last digits are just zeroes as many
+            // If the precision diff is negative this means we're parsing
+            // into a less precise amount, which is only allowed when there
+            // aren't any decimals, and the last digits are just zeroes as many
             // as is the difference in precision.
+            // e.g. parse_signed_to_satoshi("10000", Denomination::MilliSatoshi);
             let last_n = precision_diff.abs() as usize;
             if is_too_precise(s, last_n) {
                 return Err(ParseAmountError::TooPrecise);
@@ -327,12 +328,20 @@ mod tests {
             (true, 10000000000)
         );
         assert_eq!(
-            parse_signed_to_satoshi("100", Denomination::MilliSatoshi).unwrap(),
-            (false, 100000)
+            parse_signed_to_satoshi("100", Denomination::MilliSatoshi).unwrap_err(),
+            ParseAmountError::TooPrecise
+        );
+        assert_eq!(
+            parse_signed_to_satoshi(".001", Denomination::MilliSatoshi).unwrap_err(),
+            ParseAmountError::TooPrecise
         );
         assert_eq!(
             parse_signed_to_satoshi(".0000100", Denomination::Satoshi).unwrap_err(),
             ParseAmountError::TooPrecise
+        );
+        assert_eq!(
+            parse_signed_to_satoshi(".0000100", Denomination::Bitcoin).unwrap(),
+            (false, 1000)
         );
         assert_eq!(
             parse_signed_to_satoshi("-", Denomination::Satoshi).unwrap_err(),
