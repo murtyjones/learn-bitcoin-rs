@@ -86,6 +86,32 @@ pub enum ParseAmountError {
 #[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct Amount(u64);
 
+impl Amount {
+    /// Parse a decimal string as a value in a given denomination
+    pub fn from_str_in(s: &str, denom: Denomination) -> Result<Amount, ParseAmountError> {
+        let (negative, satoshi) = parse_signed_to_satoshi(s, denom)?;
+        // Gotta use [SignedAmount] for negative amounts
+        if negative {
+            return Err(ParseAmountError::Negative);
+        }
+        if satoshi > i64::max_value() as u64 {
+            return Err(ParseAmountError::TooBig);
+        }
+        Ok(Amount::from_sat(satoshi))
+    }
+
+    /// Turns a float into an [Amount]
+    pub fn from_float_in(value: f64, denom: Denomination) -> Result<Amount, ParseAmountError> {
+        if value < 0.0 {
+            // gotta use [SignedAmount] for negative values
+            return Err(ParseAmountError::Negative);
+        }
+        // Relying on string parsing is the safest way to parse a float.
+        // apparently float parsing is tricky due to `halfway cases`
+        Amount::from_str_in(&value.to_string(), denom)
+    }
+}
+
 #[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct SignedAmount(i64);
 
@@ -184,7 +210,7 @@ fn parse_signed_to_satoshi(
     let mut value: u64 = 0; // as satoshis
     for c in s.chars() {
         match c {
-            '0'...'9' => {
+            '0'..='9' => {
                 match 10_u64.checked_mul(value) {
                     None => return Err(ParseAmountError::TooBig),
                     Some(val) => match val.checked_add((c as u8 - b'0') as u64) {
@@ -324,8 +350,8 @@ mod tests {
             (true, 100000000)
         );
         assert_eq!(
-            parse_signed_to_satoshi("-100", Denomination::Bitcoin).unwrap(),
-            (true, 10000000000)
+            parse_signed_to_satoshi("-900", Denomination::Bitcoin).unwrap(),
+            (true, 90000000000)
         );
         assert_eq!(
             parse_signed_to_satoshi("10000", Denomination::MilliSatoshi).unwrap(),
@@ -379,11 +405,13 @@ mod tests {
 
     #[test]
     fn floating_point() {
-        //        use super::Denomination as D;
-        //        let f = Amount::from_float_in;
-        //        let sf = SignedAmount::from_float_in;
-        //        let sat = Amount::from_sat;
-        //        let ssat = SignedAmount::from_sat;
-        // TODO fill out these tests
+        use super::Denomination as D;
+        let f = Amount::from_float_in;
+        let sf = SignedAmount::from_float_in;
+        let sat = Amount::from_sat;
+        let ssat = SignedAmount::from_sat;
+
+        assert_eq!(f(11.22, D::Bitcoin), Ok(sat(1122000000)));
+        assert_eq!(sf(-11.22, D::MilliBitcoin), Ok(ssat(-1122000)));
     }
 }
