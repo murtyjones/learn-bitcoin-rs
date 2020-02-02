@@ -11,3 +11,9 @@ pub mod util;
     not(any(test, debug_assertions))
 ))]
 const ERR: () = "You should never be building with feature = mutation_testing or feature = fuzztarget! They are used to compile with broken code for testing only!";
+
+// cd ~
+// rm -rf mutagen &&
+// git clone https://github.com/TheBlueMatt/mutagen &&
+// cargo install --force --path mutagen/mutagen-runner &&
+// ~/.cargo/bin/cargo-mutagen --features mutation_testing
