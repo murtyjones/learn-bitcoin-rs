@@ -2,6 +2,9 @@ use std::fmt::{self, Display, Formatter, Write};
 use std::ops;
 use std::str::FromStr;
 
+#[cfg(all(test, feature = "mutation_testing"))]
+use mutagen::mutate;
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Denomination {
     // BTC
@@ -260,6 +263,7 @@ fn is_too_precise(s: &str, precision: usize) -> bool {
     s.contains(".") || precision > s.len() || s.chars().rev().take(precision).any(|d| d != '0')
 }
 
+#[cfg_attr(all(test, feature = "mutation_testing"), mutate)]
 /// Format the given satoshi amount in the given denomination.
 fn fmt_satoshi_in(
     satoshi: u64,
@@ -277,7 +281,7 @@ fn fmt_satoshi_in(
         // add zeroes in the end
         let width = denom.precision() as usize;
         write!(f, "{}{:0width$}", satoshi, 0, width = width)?;
-    } else if denom.precision() < 0 {
+    } else if denom.precision() < sat_precision {
         // need to inject a comma in the number
         let nb_decimals = denom.precision().abs() as usize;
         let real = format!("{:0width$}", satoshi, width = nb_decimals);

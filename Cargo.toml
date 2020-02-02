@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["Martin Jones <murtin.jones@gmail.com>"]
 edition = "2018"
 
+[features]
+# Testing only features, don't enable these unless you want to run rust-lightning tests!
+mutation_testing = ["mutagen"]
+
 [dependencies]
 learn-bitcoin-rs-macros = { path = "macros" }
 learn-bitcoin-rs-lib = { path = "src" }
+mutagen = { git = "https://github.com/TheBlueMatt/mutagen", optional = true }
+
