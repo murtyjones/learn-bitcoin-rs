@@ -259,7 +259,7 @@ fn is_too_precise(s: &str, precision: usize) -> bool {
     // Returns true if the string has a decimal, the given
     // precision is greater than the length of the string,
     // or any of the last [precision] characters in the string are not `0`
-    s.contains(".") || precision > s.len() || s.chars().rev().take(precision).any(|d| d != '0')
+    s.contains(".") || precision >= s.len() || s.chars().rev().take(precision).any(|d| d != '0')
 }
 
 /// Format the given satoshi amount in the given denomination.
@@ -619,13 +619,11 @@ mod tests {
 
         assert_eq!(sp("0 msat"), Err(E::TooPrecise));
         assert_eq!(sp("-0 msat"), Err(E::TooPrecise));
-        // TODO THESE SHOULD FAIL:
-        //        assert_eq!(sp("000 msat"), Err(E::TooPrecise));
-        //        assert_eq!(sp("-000 msat"), Err(E::TooPrecise));
+        assert_eq!(sp("000 msat"), Err(E::TooPrecise));
+        assert_eq!(sp("-000 msat"), Err(E::TooPrecise));
         assert_eq!(p("0 msat"), Err(E::TooPrecise));
         assert_eq!(p("-0 msat"), Err(E::TooPrecise));
-        // TODO THESE SHOULD FAIL:
-        //        assert_eq!(p("000 msat"), Err(E::TooPrecise));
-        //        assert_eq!(p("-000 msat"), Err(E::TooPrecise));
+        assert_eq!(p("000 msat"), Err(E::TooPrecise));
+        assert_eq!(p("-000 msat"), Err(E::TooPrecise));
     }
 }
