@@ -76,6 +76,13 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
 
     let gen = quote! {
         impl #struct_name {
+            /// the zero amount
+            pub const ZERO: #struct_name = #struct_name(0);
+            /// exactly one sat
+            pub const ONE_SAT: #struct_name = #struct_name(1);
+            /// exactly one bitcoin
+            pub const ONE_BTC: #struct_name = #struct_name(100_000_000);
+
             /// Creates an [Amount]|[SignedAmount] object from a given number of satoshis
             pub fn from_sat(satoshis: #num_type) -> #struct_name {
                 #struct_name(satoshis)
@@ -137,6 +144,26 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
             /// Convert from a value expressing bitcoins to an [Amount]|[SignedAmount]
             pub fn from_btc(btc: f64) -> Result<#struct_name, ParseAmountError> {
                 #struct_name::from_float_in(btc, Denomination::Bitcoin)
+            }
+
+            /// Get a formatted string of this [Amount]|[SignedAmount] in the given denomination,
+            /// suffixed with the abbreviation for this denomination.
+            pub fn to_string_with_denomination(&self, denom: Denomination) -> String {
+                let mut buf = String::new();
+                self.fmt_value_in(&mut buf, denom).unwrap();
+                write!(buf, " {}", denom).unwrap();
+                buf
+            }
+
+            /// Parses amounts with a denomination suffix into an [Amount]|[SignedAmount]
+            pub fn from_str_with_denomination(s: &str) -> Result<#struct_name, ParseAmountError> {
+                let mut split = s.splitn(3, " ");
+                let amt_str = split.next().ok_or(ParseAmountError::InvalidFormat)?;
+                let denom_str = split.next().ok_or(ParseAmountError::InvalidFormat)?;
+                if split.next().is_some() {
+                    return Err(ParseAmountError::InvalidFormat);
+                }
+                Ok(#struct_name::from_str_in(amt_str, denom_str.parse()?)?)
             }
         }
 
@@ -246,6 +273,14 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
             fn fmt(&self, f: &mut Formatter) -> fmt::Result {
                 self.fmt_value_in(f, Denomination::Bitcoin)?;
                 write!(f, " {}", Denomination::Bitcoin)
+            }
+        }
+
+        impl FromStr for #struct_name {
+            type Err = ParseAmountError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                #struct_name::from_str_with_denomination(s)
             }
         }
     };

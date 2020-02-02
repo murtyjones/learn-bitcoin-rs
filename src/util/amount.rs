@@ -559,4 +559,47 @@ mod tests {
         );
         assert_eq!(p("12", Denomination::MilliSatoshi), Err(E::TooPrecise));
     }
+
+    #[test]
+    fn test_to_string() {
+        use super::Denomination as D;
+
+        assert_eq!(Amount::ONE_BTC.to_string_in(D::Bitcoin), "1.00000000");
+        assert_eq!(Amount::ONE_BTC.to_string_in(D::Satoshi), "100000000");
+        assert_eq!(Amount::ONE_SAT.to_string_in(D::Bitcoin), "0.00000001");
+        assert_eq!(
+            SignedAmount::from_sat(-42).to_string_in(D::Bitcoin),
+            "-0.00000042"
+        );
+
+        assert_eq!(
+            Amount::ONE_BTC.to_string_with_denomination(D::Bitcoin),
+            "1.00000000 BTC"
+        );
+        assert_eq!(
+            Amount::ONE_SAT.to_string_with_denomination(D::MilliSatoshi),
+            "1000 msat"
+        );
+        assert_eq!(
+            Amount::ONE_BTC.to_string_with_denomination(D::Satoshi),
+            "100000000 satoshi"
+        );
+        assert_eq!(
+            Amount::ONE_SAT.to_string_with_denomination(D::Bitcoin),
+            "0.00000001 BTC"
+        );
+        assert_eq!(
+            SignedAmount::from_sat(-42).to_string_with_denomination(D::Bitcoin),
+            "-0.00000042 BTC"
+        );
+    }
+
+    #[test]
+    fn test_from_string() {
+        use super::ParseAmountError as E;
+        let p = Amount::from_str;
+        let sp = SignedAmount::from_str;
+
+        assert_eq!(p("x BTC"), Err(E::InvalidCharacter('x')));
+    }
 }
