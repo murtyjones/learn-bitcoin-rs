@@ -65,7 +65,7 @@ impl FromStr for Denomination {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseAmountError {
-    /// Amount is negative
+    /// Amount is negative (only an error if using [Amount])
     Negative,
     /// Amount is too big to fit inside of the type
     TooBig,
@@ -173,6 +173,8 @@ impl SignedAmount {
 
 /// Parses a decimal string in the given denomination into a satoshi value
 /// and a boolean that indicates whether it's a negative amount
+/// Parse decimal string in the given denomination into a satoshi value and a
+/// bool indicator for a negative amount.
 fn parse_signed_to_satoshi(
     mut s: &str,
     denom: Denomination,
@@ -180,14 +182,11 @@ fn parse_signed_to_satoshi(
     if s.len() == 0 {
         return Err(ParseAmountError::InvalidFormat);
     }
-    // TODO why is 50 the max?
     if s.len() > 50 {
         return Err(ParseAmountError::InputTooLarge);
     }
 
     let is_negative = s.chars().next().unwrap() == '-';
-    // If negative, either return an error (if the `-` is the
-    // only character) or remove the `-` and continue parsing
     if is_negative {
         if s.len() == 1 {
             return Err(ParseAmountError::InvalidFormat);
@@ -197,14 +196,13 @@ fn parse_signed_to_satoshi(
 
     let max_decimals = {
         // The difference in precision between native (satoshi)
-        // and desired denomation.
+        // and desired denomination.
         let precision_diff = -denom.precision();
         if precision_diff < 0 {
-            // If the precision diff is negative this means we're parsing
-            // into a less precise amount, which is only allowed when there
-            // aren't any decimals, and the last digits are just zeroes as many
-            // as is the difference in precision.
-            // e.g. parse_signed_to_satoshi("10000", Denomination::MilliSatoshi);
+            // If precision diff is negative, this means we are parsing
+            // into a less precise amount. That is not allowed unless
+            // there are no decimals and the last digits are zeroes as
+            // many as the difference in precision.
             let last_n = precision_diff.abs() as usize;
             if is_too_precise(s, last_n) {
                 return Err(ParseAmountError::TooPrecise);
@@ -221,6 +219,7 @@ fn parse_signed_to_satoshi(
     for c in s.chars() {
         match c {
             '0'..='9' => {
+                // Do `value = 10 * value + digit`, catching overflows.
                 match 10_u64.checked_mul(value) {
                     None => return Err(ParseAmountError::TooBig),
                     Some(val) => match val.checked_add((c as u8 - b'0') as u64) {
@@ -228,6 +227,7 @@ fn parse_signed_to_satoshi(
                         Some(val) => value = val,
                     },
                 }
+                // Increment the decimal digit counter if past decimal.
                 decimals = match decimals {
                     None => None,
                     Some(d) if d < max_decimals => Some(d + 1),
@@ -236,13 +236,14 @@ fn parse_signed_to_satoshi(
             }
             '.' => match decimals {
                 None => decimals = Some(0),
-                // double decimal dot
+                // Double decimal dot.
                 _ => return Err(ParseAmountError::InvalidFormat),
             },
             c => return Err(ParseAmountError::InvalidCharacter(c)),
         }
     }
 
+    // Decimally shift left by `max_decimals - decimals`.
     let scale_factor = max_decimals - decimals.unwrap_or(0);
     for _ in 0..scale_factor {
         value = match 10_u64.checked_mul(value) {
@@ -250,6 +251,7 @@ fn parse_signed_to_satoshi(
             None => return Err(ParseAmountError::TooBig),
         };
     }
+
     Ok((is_negative, value))
 }
 
@@ -601,5 +603,29 @@ mod tests {
         let sp = SignedAmount::from_str;
 
         assert_eq!(p("x BTC"), Err(E::InvalidCharacter('x')));
+        assert_eq!(p("5 BTC BTC"), Err(E::InvalidFormat));
+        assert_eq!(p("5 5 BTC"), Err(E::InvalidFormat));
+
+        assert_eq!(p("5 BCH"), Err(E::UnknownDenomination("BCH".to_owned())));
+
+        assert_eq!(p("-1 BTC"), Err(E::Negative));
+        assert_eq!(p("-0.0 BTC"), Err(E::Negative));
+        assert_eq!(p("0.123456789 BTC"), Err(E::TooPrecise));
+        assert_eq!(sp("-0.1 satoshi"), Err(E::TooPrecise));
+        assert_eq!(p("0.123456 mBTC"), Err(E::TooPrecise));
+        assert_eq!(sp("-1.001 bits"), Err(E::TooPrecise));
+        assert_eq!(sp("-200000000000 BTC"), Err(E::TooBig));
+        assert_eq!(p("18446744073709551616 BTC"), Err(E::TooBig));
+
+        assert_eq!(sp("0 msat"), Err(E::TooPrecise));
+        assert_eq!(sp("-0 msat"), Err(E::TooPrecise));
+        // TODO THESE SHOULD FAIL:
+        //        assert_eq!(sp("000 msat"), Err(E::TooPrecise));
+        //        assert_eq!(sp("-000 msat"), Err(E::TooPrecise));
+        assert_eq!(p("0 msat"), Err(E::TooPrecise));
+        assert_eq!(p("-0 msat"), Err(E::TooPrecise));
+        // TODO THESE SHOULD FAIL:
+        //        assert_eq!(p("000 msat"), Err(E::TooPrecise));
+        //        assert_eq!(p("-000 msat"), Err(E::TooPrecise));
     }
 }
