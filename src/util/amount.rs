@@ -271,7 +271,9 @@ fn fmt_satoshi_in(
         f.write_str("-")?;
     }
 
-    if denom.precision() > 0 {
+    let sat_precision = Denomination::Satoshi.precision();
+
+    if denom.precision() > sat_precision {
         // add zeroes in the end
         let width = denom.precision() as usize;
         write!(f, "{}{:0width$}", satoshi, 0, width = width)?;
@@ -446,6 +448,11 @@ mod tests {
             parse_signed_to_satoshi("c", Denomination::Satoshi).unwrap_err(),
             ParseAmountError::InvalidCharacter("c".chars().next().unwrap())
         );
+        assert_eq!(
+            parse_signed_to_satoshi(&*format!("{}", i64::max_value()), Denomination::Bitcoin)
+                .unwrap_err(),
+            ParseAmountError::TooBig
+        );
     }
 
     #[test]
@@ -516,6 +523,12 @@ mod tests {
         let mut buf = String::new();
         fmt_satoshi_in(1000, true, &mut buf, Denomination::Satoshi);
         assert_eq!(buf, "-1000");
+        let mut buf = String::new();
+        fmt_satoshi_in(1000, true, &mut buf, Denomination::MilliSatoshi);
+        assert_eq!(buf, "-1000000");
+        let mut buf = String::new();
+        fmt_satoshi_in(1000, true, &mut buf, Denomination::Bitcoin);
+        assert_eq!(buf, "-0.00001000");
     }
 
     #[test]
@@ -531,6 +544,8 @@ mod tests {
         assert_eq!(p("-1.0x", btc), Err(E::InvalidCharacter('x')));
         assert_eq!(p("0.0 ", btc), Err(E::InvalidCharacter(' ')));
         assert_eq!(p("0.000.000 ", btc), Err(E::InvalidFormat));
+        let max = format!("{}", i64::max_value());
+        assert_eq!(p(&max, btc), Err(E::TooBig));
         let more_than_max = format!("1{}", Amount::max_value());
         assert_eq!(p(&more_than_max, btc), Err(E::TooBig));
         assert_eq!(p("0.000000042", btc), Err(E::TooPrecise));
