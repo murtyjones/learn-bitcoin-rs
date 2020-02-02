@@ -625,5 +625,26 @@ mod tests {
         assert_eq!(p("-0 msat"), Err(E::TooPrecise));
         assert_eq!(p("000 msat"), Err(E::TooPrecise));
         assert_eq!(p("-000 msat"), Err(E::TooPrecise));
+
+        assert_eq!(p(".5 bits"), Ok(Amount::from_sat(50)));
+        assert_eq!(sp("-.5 bits"), Ok(SignedAmount::from_sat(-50)));
+        assert_eq!(p("0.00253583 BTC"), Ok(Amount::from_sat(253583)));
+        assert_eq!(sp("-5 satoshi"), Ok(SignedAmount::from_sat(-5)));
+        assert_eq!(p("0.10000000 BTC"), Ok(Amount::from_sat(10000000)));
+        assert_eq!(sp("-100 bits"), Ok(SignedAmount::from_sat(-10_000)));
+    }
+
+    #[test]
+    fn to_string_with_denomination_from_str_roundtrip() {
+        use super::Denomination as D;
+
+        let amt = Amount::from_sat(42);
+        let denom = Amount::to_string_with_denomination;
+        assert_eq!(Amount::from_str(&denom(&amt, D::Bitcoin)), Ok(amt));
+        assert_eq!(Amount::from_str(&denom(&amt, D::MilliBitcoin)), Ok(amt));
+        assert_eq!(Amount::from_str(&denom(&amt, D::MicroBitcoin)), Ok(amt));
+        assert_eq!(Amount::from_str(&denom(&amt, D::Bit)), Ok(amt));
+        assert_eq!(Amount::from_str(&denom(&amt, D::Satoshi)), Ok(amt));
+        assert_eq!(Amount::from_str(&denom(&amt, D::MilliSatoshi)), Ok(amt));
     }
 }
