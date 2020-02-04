@@ -14,7 +14,7 @@ jobs:
         run: cargo build --verbose
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --all-features
 
   nightly:
 
@@ -33,4 +33,4 @@ jobs:
         run: cargo build --verbose
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --all-features

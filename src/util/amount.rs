@@ -1,3 +1,4 @@
+use std::error;
 use std::fmt::{self, Display, Formatter, Write};
 use std::ops;
 use std::str::FromStr;
@@ -79,6 +80,35 @@ pub enum ParseAmountError {
     InvalidCharacter(char),
     /// The denomination didn't match our known ones
     UnknownDenomination(String),
+}
+
+impl fmt::Display for ParseAmountError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let desc = self.to_string();
+        match *self {
+            ParseAmountError::InvalidCharacter(c) => write!(f, "{}: {}", desc, c),
+            // TODO try removing this `ref`
+            ParseAmountError::UnknownDenomination(ref d) => write!(f, "{}: {}", desc, d),
+            _ => f.write_str(&*desc),
+        }
+    }
+}
+
+impl error::Error for ParseAmountError {
+    fn description(&self) -> &'static str {
+        match *self {
+            ParseAmountError::Negative => "amount is negative",
+            ParseAmountError::TooBig => "amount is too big",
+            ParseAmountError::TooPrecise => "amount has a too-high precision",
+            ParseAmountError::InvalidFormat => "invalid number format",
+            ParseAmountError::InputTooLarge => "input string was too large",
+            ParseAmountError::InvalidCharacter(_) => "invalid character in input",
+            ParseAmountError::UnknownDenomination(_) => "unknown denomination",
+        }
+    }
+    fn cause(&self) -> Option<&dyn error::Error> {
+        None
+    }
 }
 
 /// Can be used to represent Bitcoin amounts. Supports
@@ -297,6 +327,132 @@ fn fmt_satoshi_in(
         write!(f, "{}", satoshi)?;
     }
     Ok(())
+}
+
+#[cfg(feature = "serde")]
+pub mod serde {
+    // methods are an implementation of a standardized serde-specific signature
+    #![allow(missing_docs)]
+
+    use crate::util::amount::{Amount, Denomination, SignedAmount};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    /// This trait is used only to avoid code duplication and naming
+    /// collisions of the different serde serialization crates.
+    pub trait SerdeAmount: Copy + Sized {
+        fn ser_sat<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        fn des_sat<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error>;
+        fn ser_btc<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error>;
+        fn des_btc<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error>;
+    }
+
+    impl SerdeAmount for Amount {
+        fn ser_sat<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            u64::serialize(&self.as_sat(), s)
+        }
+        fn des_sat<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            Ok(Amount::from_sat(u64::deserialize(d)?))
+        }
+        fn ser_btc<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            f64::serialize(&self.to_float_in(Denomination::Bitcoin), s)
+        }
+        fn des_btc<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            use serde::de::Error;
+            Ok(Amount::from_btc(f64::deserialize(d)?).map_err(D::Error::custom)?)
+        }
+    }
+
+    impl SerdeAmount for SignedAmount {
+        fn ser_sat<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            i64::serialize(&self.as_sat(), s)
+        }
+        fn des_sat<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            Ok(SignedAmount::from_sat(i64::deserialize(d)?))
+        }
+        fn ser_btc<S: Serializer>(self, s: S) -> Result<S::Ok, S::Error> {
+            f64::serialize(&self.to_float_in(Denomination::Bitcoin), s)
+        }
+        fn des_btc<'d, D: Deserializer<'d>>(d: D) -> Result<Self, D::Error> {
+            use serde::de::Error;
+            Ok(SignedAmount::from_btc(f64::deserialize(d)?).map_err(D::Error::custom)?)
+        }
+    }
+
+    pub mod as_sat {
+        //! Serialize and deserialize [Amount] as real numbers denominated in Satoshi.
+        //! Use with `#[serde(with = "amount::serde::as_sat")]`
+        use crate::util::amount::serde::SerdeAmount;
+        use serde::{Deserializer, Serializer};
+
+        pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
+            a.ser_sat(s)
+        }
+
+        pub fn deserialize<'d, A: SerdeAmount, D: Deserializer<'d>>(d: D) -> Result<A, D::Error> {
+            A::des_sat(d)
+        }
+
+        pub mod opt {
+            //! Serialize and deserialize [Option<Amount>] as real numbers denominated in satoshi.
+            //! Use with `#[serde(default, with = "amount::serde::as_sat::opt")]`.
+            use crate::util::amount::serde::SerdeAmount;
+            use serde::{Deserializer, Serializer};
+
+            pub fn serialize<A: SerdeAmount, S: Serializer>(
+                a: &Option<A>,
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
+                match *a {
+                    Some(a) => a.ser_sat(s),
+                    None => s.serialize_none(),
+                }
+            }
+
+            pub fn deserialize<'d, A: SerdeAmount, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Option<A>, D::Error> {
+                Ok(Some(A::des_sat(d)?))
+            }
+        }
+    }
+
+    pub mod as_btc {
+        //! Serialize and deserialize [Amount] as JSON numbers denominated in BTC.
+        //! Use with `#[serde(with = "amount::serde::as_btc")]`
+        use crate::util::amount::serde::SerdeAmount;
+        use serde::{Deserializer, Serializer};
+
+        pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
+            a.ser_btc(s)
+        }
+
+        pub fn deserialize<'d, A: SerdeAmount, D: Deserializer<'d>>(d: D) -> Result<A, D::Error> {
+            A::des_btc(d)
+        }
+
+        pub mod opt {
+            //! Serialize and deserialize [Option<Amount>] as JSON numbers denominated in BTC.
+            //! Use with `#[serde(default, with = "amount::serde::as_btc::opt")]`.
+            use crate::util::amount::serde::SerdeAmount;
+            use serde::{Deserializer, Serializer};
+
+            pub fn serialize<A: SerdeAmount, S: Serializer>(
+                a: &Option<A>,
+                s: S,
+            ) -> Result<S::Ok, S::Error> {
+                match *a {
+                    Some(a) => a.ser_btc(s),
+                    None => s.serialize_none(),
+                }
+            }
+
+            pub fn deserialize<'d, A: SerdeAmount, D: Deserializer<'d>>(
+                d: D,
+            ) -> Result<Option<A>, D::Error> {
+                Ok(Some(A::des_sat(d)?))
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -520,16 +676,16 @@ mod tests {
     #[test]
     fn test_fmt_satoshi_in() {
         let mut buf = String::new();
-        fmt_satoshi_in(100, false, &mut buf, Denomination::Satoshi);
+        fmt_satoshi_in(100, false, &mut buf, Denomination::Satoshi).unwrap();
         assert_eq!(buf, "100");
         let mut buf = String::new();
-        fmt_satoshi_in(1000, true, &mut buf, Denomination::Satoshi);
+        fmt_satoshi_in(1000, true, &mut buf, Denomination::Satoshi).unwrap();
         assert_eq!(buf, "-1000");
         let mut buf = String::new();
-        fmt_satoshi_in(1000, true, &mut buf, Denomination::MilliSatoshi);
+        fmt_satoshi_in(1000, true, &mut buf, Denomination::MilliSatoshi).unwrap();
         assert_eq!(buf, "-1000000");
         let mut buf = String::new();
-        fmt_satoshi_in(1000, true, &mut buf, Denomination::Bitcoin);
+        fmt_satoshi_in(1000, true, &mut buf, Denomination::Bitcoin).unwrap();
         assert_eq!(buf, "-0.00001000");
     }
 
@@ -646,5 +802,32 @@ mod tests {
         assert_eq!(Amount::from_str(&denom(&amt, D::Bit)), Ok(amt));
         assert_eq!(Amount::from_str(&denom(&amt, D::Satoshi)), Ok(amt));
         assert_eq!(Amount::from_str(&denom(&amt, D::MilliSatoshi)), Ok(amt));
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_as_sat() {
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct T {
+            #[serde(with = "crate::util::amount::serde::as_sat")]
+            pub amt: Amount,
+            #[serde(with = "crate::util::amount::serde::as_sat")]
+            pub samt: SignedAmount,
+        }
+
+        serde_test::assert_tokens(
+            &T {
+                amt: Amount::from_sat(123456789),
+                samt: SignedAmount::from_sat(-123456789),
+            },
+            &[
+                serde_test::Token::Struct { name: "T", len: 2 },
+                serde_test::Token::Str("amt"),
+                serde_test::Token::U64(123456789),
+                serde_test::Token::Str("samt"),
+                serde_test::Token::I64(-123456789),
+                serde_test::Token::StructEnd,
+            ],
+        );
     }
 }
