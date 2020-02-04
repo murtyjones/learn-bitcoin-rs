@@ -283,6 +283,12 @@ fn impl_formulate(ast: &syn::DeriveInput) -> TokenStream {
                 #struct_name::from_str_with_denomination(s)
             }
         }
+
+        impl default::Default for #struct_name {
+            fn default() -> Self {
+                #struct_name::ZERO
+            }
+        }
     };
     gen.into()
 }

@@ -1,21 +1,28 @@
+//! Amounts
+//!
+//! This module mainly introduces [Amount] and [SignedAmount] which can be
+//! used to represents and do math on different bitcoin amounts.
+
+use std::default;
 use std::error;
 use std::fmt::{self, Display, Formatter, Write};
 use std::ops;
 use std::str::FromStr;
 
+/// Different denominations for bitcoin
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum Denomination {
-    // BTC
+    /// BTC
     Bitcoin,
-    // mBTC
+    /// mBTC
     MilliBitcoin,
-    // uBTC
+    /// uBTC
     MicroBitcoin,
-    // bits
+    /// bits
     Bit,
-    // msat
+    /// msat
     Satoshi,
-    // msat
+    /// msat
     MilliSatoshi,
 }
 
@@ -64,6 +71,7 @@ impl FromStr for Denomination {
     }
 }
 
+/// Errors that can happen parsing bitcoin amounts
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseAmountError {
     /// Amount is negative (only an error if using [Amount])
@@ -147,6 +155,7 @@ impl Amount {
     }
 }
 
+/// An amount of bitcoin that can be negative or positive
 #[derive(Copy, Clone, Hash, PartialEq, SatoshiArithmetic)]
 pub struct SignedAmount(i64);
 
@@ -248,7 +257,7 @@ fn parse_signed_to_satoshi(
     let mut value: u64 = 0; // as satoshis
     for c in s.chars() {
         match c {
-            '0'..='9' => {
+            '0'...'9' => {
                 // Do `value = 10 * value + digit`, catching overflows.
                 match 10_u64.checked_mul(value) {
                     None => return Err(ParseAmountError::TooBig),
@@ -334,8 +343,8 @@ pub mod serde {
     // methods are an implementation of a standardized serde-specific signature
     #![allow(missing_docs)]
 
-    use crate::util::amount::{Amount, Denomination, SignedAmount};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use util::amount::{Amount, Denomination, SignedAmount};
 
     /// This trait is used only to avoid code duplication and naming
     /// collisions of the different serde serialization crates.
@@ -381,8 +390,8 @@ pub mod serde {
     pub mod as_sat {
         //! Serialize and deserialize [Amount] as real numbers denominated in Satoshi.
         //! Use with `#[serde(with = "amount::serde::as_sat")]`
-        use crate::util::amount::serde::SerdeAmount;
         use serde::{Deserializer, Serializer};
+        use util::amount::serde::SerdeAmount;
 
         pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
             a.ser_sat(s)
@@ -395,8 +404,8 @@ pub mod serde {
         pub mod opt {
             //! Serialize and deserialize [Option<Amount>] as real numbers denominated in satoshi.
             //! Use with `#[serde(default, with = "amount::serde::as_sat::opt")]`.
-            use crate::util::amount::serde::SerdeAmount;
             use serde::{Deserializer, Serializer};
+            use util::amount::serde::SerdeAmount;
 
             pub fn serialize<A: SerdeAmount, S: Serializer>(
                 a: &Option<A>,
@@ -419,8 +428,8 @@ pub mod serde {
     pub mod as_btc {
         //! Serialize and deserialize [Amount] as JSON numbers denominated in BTC.
         //! Use with `#[serde(with = "amount::serde::as_btc")]`
-        use crate::util::amount::serde::SerdeAmount;
         use serde::{Deserializer, Serializer};
+        use util::amount::serde::SerdeAmount;
 
         pub fn serialize<A: SerdeAmount, S: Serializer>(a: &A, s: S) -> Result<S::Ok, S::Error> {
             a.ser_btc(s)
@@ -433,8 +442,8 @@ pub mod serde {
         pub mod opt {
             //! Serialize and deserialize [Option<Amount>] as JSON numbers denominated in BTC.
             //! Use with `#[serde(default, with = "amount::serde::as_btc::opt")]`.
-            use crate::util::amount::serde::SerdeAmount;
             use serde::{Deserializer, Serializer};
+            use util::amount::serde::SerdeAmount;
 
             pub fn serialize<A: SerdeAmount, S: Serializer>(
                 a: &Option<A>,
@@ -461,7 +470,6 @@ mod tests {
     use std::panic;
     use std::str::FromStr;
 
-    use serde_json::{Deserializer, Serializer};
     #[cfg(feature = "serde")]
     use serde_test;
 
@@ -810,9 +818,9 @@ mod tests {
     fn test_serde_as_sat() {
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
         struct T {
-            #[serde(with = "crate::util::amount::serde::as_sat")]
+            #[serde(with = "::util::amount::serde::as_sat")]
             pub amt: Amount,
-            #[serde(with = "crate::util::amount::serde::as_sat")]
+            #[serde(with = "::util::amount::serde::as_sat")]
             pub samt: SignedAmount,
         }
 
@@ -839,9 +847,9 @@ mod tests {
 
         #[derive(Serialize, Deserialize, PartialEq, Debug)]
         struct T {
-            #[serde(with = "crate::util::amount::serde::as_btc")]
+            #[serde(with = "::util::amount::serde::as_btc")]
             pub amt: Amount,
-            #[serde(with = "crate::util::amount::serde::as_btc")]
+            #[serde(with = "::util::amount::serde::as_btc")]
             pub samt: SignedAmount,
         }
 
@@ -859,11 +867,11 @@ mod tests {
         assert_eq!(t, serde_json::from_value(value).unwrap());
 
         // errors
-        //        let t: Result<T, serde_json::Error> =
-        //            serde_json::from_str("{\"amt\": 100000.0000000001, \"samt\": 1}");
-        //        assert!(t
-        //            .unwrap_err()
-        //            .to_string()
-        //            .contains(&ParseAmountError::TooPrecise.to_string()));
+        let t: Result<T, serde_json::Error> =
+            serde_json::from_str("{\"amt\": 100000.0000000001, \"samt\": 1}");
+        assert!(t
+            .unwrap_err()
+            .to_string()
+            .contains(&ParseAmountError::TooPrecise.to_string()));
     }
 }
