@@ -41,6 +41,7 @@ extern crate serde_test;
 #[cfg(all(test, feature = "unstable"))]
 extern crate test;
 
+pub mod blockdata;
 pub mod util;
 
 pub use util::amount::Amount;
