@@ -8,6 +8,9 @@ edition = "2018"
 name = "bitcoin"
 path = "src/lib.rs"
 
+[features]
+unstable = []
+
 [dependencies]
 learn-bitcoin-rs-macros = { path = "macros" }
 learn-bitcoin-rs-lib = { path = "src" }
