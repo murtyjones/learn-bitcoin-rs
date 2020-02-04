@@ -1,2 +1,12 @@
 /target
 **/*.rs.bk
+
+fuzz/hfuzz_target
+fuzz/hfuzz_workspace
+
+# macOS:
+.DS_Store
+
+# IntelliJ
+.idea
+*.iml
