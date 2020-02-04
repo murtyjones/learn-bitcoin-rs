@@ -9,7 +9,6 @@
 //! It is also written entirely in Rust to illustrate the benefits of strong type
 //! safety, including ownership and lifetime, for financial and/or cryptographic
 //! software.
-//!
 
 // Coding conventions
 #![forbid(unsafe_code)]
@@ -29,8 +28,6 @@
 #![allow(ellipsis_inclusive_range_patterns)]
 
 extern crate proc_macro;
-#[macro_use]
-extern crate learn_bitcoin_rs_macros;
 
 #[cfg(feature = "serde")]
 extern crate serde;

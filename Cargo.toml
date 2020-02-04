@@ -2,18 +2,12 @@
 name = "learn-bitcoin-rs"
 version = "0.1.0"
 authors = ["Martin Jones <murtin.jones@gmail.com>"]
-edition = "2018"
 
 [lib]
 name = "bitcoin"
 path = "src/lib.rs"
 
-[features]
-unstable = []
-
 [dependencies]
-learn-bitcoin-rs-macros = { path = "macros" }
-learn-bitcoin-rs-lib = { path = "src" }
 serde = { version = "1", optional = true }
 
 [dev-dependencies]
