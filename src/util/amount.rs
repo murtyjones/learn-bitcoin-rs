@@ -461,6 +461,7 @@ mod tests {
     use std::panic;
     use std::str::FromStr;
 
+    use serde_json::{Deserializer, Serializer};
     #[cfg(feature = "serde")]
     use serde_test;
 
@@ -829,5 +830,40 @@ mod tests {
                 serde_test::Token::StructEnd,
             ],
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_as_btc() {
+        use serde_json;
+
+        #[derive(Serialize, Deserialize, PartialEq, Debug)]
+        struct T {
+            #[serde(with = "crate::util::amount::serde::as_btc")]
+            pub amt: Amount,
+            #[serde(with = "crate::util::amount::serde::as_btc")]
+            pub samt: SignedAmount,
+        }
+
+        let orig = T {
+            amt: Amount::from_sat(21_000_000__000_000_01),
+            samt: SignedAmount::from_sat(-21_000_000__000_000_01),
+        };
+
+        let json = "{\"amt\": 21000000.00000001, \
+                          \"samt\": -21000000.00000001}";
+        let t: T = serde_json::from_str(&json).unwrap();
+        assert_eq!(t, orig);
+
+        let value = serde_json::from_str(&json).unwrap();
+        assert_eq!(t, serde_json::from_value(value).unwrap());
+
+        // errors
+        //        let t: Result<T, serde_json::Error> =
+        //            serde_json::from_str("{\"amt\": 100000.0000000001, \"samt\": 1}");
+        //        assert!(t
+        //            .unwrap_err()
+        //            .to_string()
+        //            .contains(&ParseAmountError::TooPrecise.to_string()));
     }
 }
