@@ -643,3 +643,136 @@ impl fmt::Debug for All {
         }
     }
 }
+
+impl All {
+    /// Classifies an Opcode into a broad class
+    /// We inline it because...? I guess because
+    /// large functions aren't inlined in rust
+    /// by default but we want to here?
+    #[inline]
+    pub fn classify(&self) -> Class {
+        if self.is_illegal_op() {
+            return Class::IllegalOp;
+        } else if self.is_no_op() {
+            return Class::NoOp;
+        } else if self.is_return_op() {
+            // 1 opcode
+            return Class::ReturnOp;
+        } else if *self == all::OP_PUSHNUM_NEG1 {
+            return Class::PushNum(-1);
+        } else if self.code <= all::OP_PUSHBYTES_75.code {
+            // 76 opcodes
+            return Class::PushNum(1 + self.code as i32 - all::OP_PUSHNUM_1.code as i32);
+        }
+        Class::Ordinary(Ordinary::try_from_all(*self).unwrap())
+    }
+
+    /// Indicates whether this opcode is illegal
+    pub fn is_illegal_op(&self) -> bool {
+        // 17 opcodes
+        *self == all::OP_VERIF
+            || *self == all::OP_VERNOTIF
+            || *self == all::OP_CAT
+            || *self == all::OP_SUBSTR
+            || *self == all::OP_LEFT
+            || *self == all::OP_RIGHT
+            || *self == all::OP_INVERT
+            || *self == all::OP_AND
+            || *self == all::OP_OR
+            || *self == all::OP_XOR
+            || *self == all::OP_2MUL
+            || *self == all::OP_2DIV
+            || *self == all::OP_MUL
+            || *self == all::OP_DIV
+            || *self == all::OP_MOD
+            || *self == all::OP_LSHIFT
+            || *self == all::OP_RSHIFT
+    }
+
+    /// Indicates whether this is a no-op
+    pub fn is_no_op(&self) -> bool {
+        // 11 opcodes:
+        *self == all::OP_NOP || (all::OP_NOP1.code <= self.code && self.code <= all::OP_NOP10.code)
+    }
+
+    /// Indicates whether this is a return op
+    pub fn is_return_op(&self) -> bool {
+        // 75 opcodes
+        *self == all::OP_RESERVED
+            || *self == all::OP_VER
+            || *self == all::OP_RETURN
+            || *self == all::OP_RESERVED1
+            || *self == all::OP_RESERVED2
+            || self.code >= all::OP_RETURN_186.code
+    }
+
+    /// Indicates whether this is a postive pushnum opcode
+    pub fn is_push_num_positive(&self) -> bool {
+        // 16 opcodes
+        all::OP_PUSHNUM_1.code <= self.code && self.code <= all::OP_PUSHNUM_16.code
+    }
+}
+
+/// Broad categories of opcodes grouped by those with similar behavior
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Class {
+    /// Pushes a number onto the stack
+    PushNum(i32),
+    /// Pushes a given number of bytes onto the stack
+    PushBytes(u32),
+    /// Fails the script if executed
+    ReturnOp,
+    /// Fails the script even if not executed
+    IllegalOp,
+    /// Does nothing
+    NoOp,
+    /// All others:
+    Ordinary(Ordinary),
+}
+
+macro_rules! ordinary_opcode {
+    ($($op:ident),*) => (
+        #[repr(u8)]
+        #[doc(hidden)]
+        #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+        pub enum Ordinary {
+            $( $op = all::$op.code ),*
+        }
+
+        impl Ordinary {
+            /// Try to create from all
+            pub fn try_from_all(b: All) -> Option<Self> {
+                match b{
+                    $( all::$op => { Some(Ordinary::$op) } ),*
+                    _ => None,
+                }
+            }
+
+        }
+    );
+}
+
+// Ordinary opcodes - there should be 60 of these
+ordinary_opcode! {
+      // pushdata
+    OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4,
+    // control flow
+    OP_IF, OP_NOTIF, OP_ELSE, OP_ENDIF, OP_VERIFY,
+    // stack
+    OP_TOALTSTACK, OP_FROMALTSTACK,
+    OP_2DROP, OP_2DUP, OP_3DUP, OP_2OVER, OP_2ROT, OP_2SWAP,
+    OP_DROP, OP_DUP, OP_NIP, OP_OVER, OP_PICK, OP_ROLL, OP_ROT, OP_SWAP, OP_TUCK,
+    OP_IFDUP, OP_DEPTH, OP_SIZE,
+    // equality
+    OP_EQUAL, OP_EQUALVERIFY,
+    // arithmetic
+    OP_1ADD, OP_1SUB, OP_NEGATE, OP_ABS, OP_NOT, OP_0NOTEQUAL,
+    OP_ADD, OP_SUB, OP_BOOLAND, OP_BOOLOR,
+    OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_LESSTHAN,
+    OP_GREATERTHAN, OP_LESSTHANOREQUAL, OP_GREATERTHANOREQUAL,
+    OP_MIN, OP_MAX, OP_WITHIN,
+    // crypto
+    OP_RIPEMD160, OP_SHA1, OP_SHA256, OP_HASH160, OP_HASH256,
+    OP_CODESEPARATOR, OP_CHECKSIG, OP_CHECKSIGVERIFY,
+    OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY
+}
