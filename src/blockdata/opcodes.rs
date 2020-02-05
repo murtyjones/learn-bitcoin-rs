@@ -652,24 +652,36 @@ impl All {
     #[inline]
     pub fn classify(&self) -> Class {
         if self.is_illegal_op() {
+            // 17 opcodes
             return Class::IllegalOp;
         } else if self.is_no_op() {
+            // 11 opcodes
             return Class::NoOp;
         } else if self.is_return_op() {
-            // 1 opcode
+            // 75 opcodes
             return Class::ReturnOp;
         } else if *self == all::OP_PUSHNUM_NEG1 {
+            // 1 opcode
             return Class::PushNum(-1);
+        } else if self.is_push_num_positive() {
+            // 16 opcodes
+            return Class::PushNum(1 + self.code as i32 - all::OP_PUSHNUM_1.code as i32);
         } else if self.code <= all::OP_PUSHBYTES_75.code {
             // 76 opcodes
-            return Class::PushNum(1 + self.code as i32 - all::OP_PUSHNUM_1.code as i32);
+            return Class::PushBytes(self.code as u32);
         }
+        // 60 opcodes
         Class::Ordinary(Ordinary::try_from_all(*self).unwrap())
     }
 
+    /// Converts to u8
+    #[inline]
+    pub fn into_u8(&self) -> u8 {
+        self.code
+    }
+
     /// Indicates whether this opcode is illegal
-    pub fn is_illegal_op(&self) -> bool {
-        // 17 opcodes
+    fn is_illegal_op(&self) -> bool {
         *self == all::OP_VERIF
             || *self == all::OP_VERNOTIF
             || *self == all::OP_CAT
@@ -690,14 +702,12 @@ impl All {
     }
 
     /// Indicates whether this is a no-op
-    pub fn is_no_op(&self) -> bool {
-        // 11 opcodes:
+    fn is_no_op(&self) -> bool {
         *self == all::OP_NOP || (all::OP_NOP1.code <= self.code && self.code <= all::OP_NOP10.code)
     }
 
     /// Indicates whether this is a return op
-    pub fn is_return_op(&self) -> bool {
-        // 75 opcodes
+    fn is_return_op(&self) -> bool {
         *self == all::OP_RESERVED
             || *self == all::OP_VER
             || *self == all::OP_RETURN
@@ -707,9 +717,15 @@ impl All {
     }
 
     /// Indicates whether this is a postive pushnum opcode
-    pub fn is_push_num_positive(&self) -> bool {
-        // 16 opcodes
+    fn is_push_num_positive(&self) -> bool {
         all::OP_PUSHNUM_1.code <= self.code && self.code <= all::OP_PUSHNUM_16.code
+    }
+}
+
+impl From<u8> for All {
+    #[inline]
+    fn from(d: u8) -> All {
+        All { code: d }
     }
 }
 
@@ -775,4 +791,14 @@ ordinary_opcode! {
     OP_RIPEMD160, OP_SHA1, OP_SHA256, OP_HASH160, OP_HASH256,
     OP_CODESEPARATOR, OP_CHECKSIG, OP_CHECKSIGVERIFY,
     OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY
+}
+
+#[cfg(test)]
+mod tests {
+
+    macro_rules! roundtrip {
+        ($unique:expr, $op:ident) => {
+            assert_eq!(all::$op, All::from(all::$op.into_u8))
+        };
+    }
 }
