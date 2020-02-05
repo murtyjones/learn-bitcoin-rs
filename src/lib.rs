@@ -41,6 +41,8 @@ extern crate serde_test;
 #[cfg(all(test, feature = "unstable"))]
 extern crate test;
 
+#[macro_use]
+pub mod internal_macros;
 pub mod blockdata;
 pub mod util;
 
