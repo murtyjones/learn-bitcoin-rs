@@ -1,3 +1,5 @@
+//! Macros for internal use in this library
+
 macro_rules! display_from_debug {
     ($thing:ident) => {
         impl fmt::Display for $thing {

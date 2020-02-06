@@ -1076,16 +1076,45 @@ mod tests {
     }
 
     macro_rules! is_in_class {
-        ($op:) => {
-            //            assert_eq!($op.classify(), Class::IllegalOp);
+        ($op:ident, $cl:ident) => {
+            assert_eq!(All::from(all::$op.into_u8()).classify(), Class::$cl)
         };
     }
 
     #[test]
     fn classify() {
-        //        let is_illegal = |a: all| a.classify() == Class::IllegalOp;
-        assert!(is_in_class!(all::OP_VERIF));
-        //        assert_eq!(all::OP_VERNOTIF.classify(), Class::IllegalOp);
-        //        assert_eq!(all::OP_CAT.classify(), Class::IllegalOp);
+        is_in_class!(OP_VERIF, IllegalOp);
+        is_in_class!(OP_VERNOTIF, IllegalOp);
+        is_in_class!(OP_CAT, IllegalOp);
+        is_in_class!(OP_SUBSTR, IllegalOp);
+        is_in_class!(OP_LEFT, IllegalOp);
+        is_in_class!(OP_RIGHT, IllegalOp);
+        is_in_class!(OP_INVERT, IllegalOp);
+        is_in_class!(OP_AND, IllegalOp);
+        is_in_class!(OP_OR, IllegalOp);
+        is_in_class!(OP_XOR, IllegalOp);
+        is_in_class!(OP_2MUL, IllegalOp);
+        is_in_class!(OP_2DIV, IllegalOp);
+        is_in_class!(OP_MUL, IllegalOp);
+        is_in_class!(OP_DIV, IllegalOp);
+        is_in_class!(OP_MOD, IllegalOp);
+        is_in_class!(OP_LSHIFT, IllegalOp);
+        is_in_class!(OP_RSHIFT, IllegalOp);
+
+        is_in_class!(OP_NOP, NoOp);
+        is_in_class!(OP_NOP1, NoOp);
+        is_in_class!(OP_NOP5, NoOp);
+        is_in_class!(OP_NOP10, NoOp);
+
+        is_in_class!(OP_RESERVED, ReturnOp);
+        is_in_class!(OP_VER, ReturnOp);
+        is_in_class!(OP_RETURN, ReturnOp);
+        is_in_class!(OP_RESERVED1, ReturnOp);
+        is_in_class!(OP_RESERVED2, ReturnOp);
+        is_in_class!(OP_RETURN_186, ReturnOp);
+        is_in_class!(OP_RETURN_220, ReturnOp);
+        is_in_class!(OP_RETURN_255, ReturnOp);
+
+        //        is_in_class!(OP_PUSHNUM_NEG1, PushNum(-1));
     }
 }
