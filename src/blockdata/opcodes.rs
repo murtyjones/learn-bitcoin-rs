@@ -1076,45 +1076,72 @@ mod tests {
     }
 
     macro_rules! is_in_class {
-        ($op:ident, $cl:ident) => {
-            assert_eq!(All::from(all::$op.into_u8()).classify(), Class::$cl)
+        ($op:ident, $cl:expr) => {
+            assert_eq!(All::from(all::$op.into_u8()).classify(), $cl)
         };
     }
 
     #[test]
     fn classify() {
-        is_in_class!(OP_VERIF, IllegalOp);
-        is_in_class!(OP_VERNOTIF, IllegalOp);
-        is_in_class!(OP_CAT, IllegalOp);
-        is_in_class!(OP_SUBSTR, IllegalOp);
-        is_in_class!(OP_LEFT, IllegalOp);
-        is_in_class!(OP_RIGHT, IllegalOp);
-        is_in_class!(OP_INVERT, IllegalOp);
-        is_in_class!(OP_AND, IllegalOp);
-        is_in_class!(OP_OR, IllegalOp);
-        is_in_class!(OP_XOR, IllegalOp);
-        is_in_class!(OP_2MUL, IllegalOp);
-        is_in_class!(OP_2DIV, IllegalOp);
-        is_in_class!(OP_MUL, IllegalOp);
-        is_in_class!(OP_DIV, IllegalOp);
-        is_in_class!(OP_MOD, IllegalOp);
-        is_in_class!(OP_LSHIFT, IllegalOp);
-        is_in_class!(OP_RSHIFT, IllegalOp);
+        use super::Class as C;
+        is_in_class!(OP_VERIF, C::IllegalOp);
+        is_in_class!(OP_VERNOTIF, C::IllegalOp);
+        is_in_class!(OP_CAT, C::IllegalOp);
+        is_in_class!(OP_SUBSTR, C::IllegalOp);
+        is_in_class!(OP_LEFT, C::IllegalOp);
+        is_in_class!(OP_RIGHT, C::IllegalOp);
+        is_in_class!(OP_INVERT, C::IllegalOp);
+        is_in_class!(OP_AND, C::IllegalOp);
+        is_in_class!(OP_OR, C::IllegalOp);
+        is_in_class!(OP_XOR, C::IllegalOp);
+        is_in_class!(OP_2MUL, C::IllegalOp);
+        is_in_class!(OP_2DIV, C::IllegalOp);
+        is_in_class!(OP_MUL, C::IllegalOp);
+        is_in_class!(OP_DIV, C::IllegalOp);
+        is_in_class!(OP_MOD, C::IllegalOp);
+        is_in_class!(OP_LSHIFT, C::IllegalOp);
+        is_in_class!(OP_RSHIFT, C::IllegalOp);
 
-        is_in_class!(OP_NOP, NoOp);
-        is_in_class!(OP_NOP1, NoOp);
-        is_in_class!(OP_NOP5, NoOp);
-        is_in_class!(OP_NOP10, NoOp);
+        is_in_class!(OP_NOP, C::NoOp);
+        is_in_class!(OP_NOP1, C::NoOp);
+        is_in_class!(OP_NOP5, C::NoOp);
+        is_in_class!(OP_NOP10, C::NoOp);
 
-        is_in_class!(OP_RESERVED, ReturnOp);
-        is_in_class!(OP_VER, ReturnOp);
-        is_in_class!(OP_RETURN, ReturnOp);
-        is_in_class!(OP_RESERVED1, ReturnOp);
-        is_in_class!(OP_RESERVED2, ReturnOp);
-        is_in_class!(OP_RETURN_186, ReturnOp);
-        is_in_class!(OP_RETURN_220, ReturnOp);
-        is_in_class!(OP_RETURN_255, ReturnOp);
+        is_in_class!(OP_RESERVED, C::ReturnOp);
+        is_in_class!(OP_VER, C::ReturnOp);
+        is_in_class!(OP_RETURN, C::ReturnOp);
+        is_in_class!(OP_RESERVED1, C::ReturnOp);
+        is_in_class!(OP_RESERVED2, C::ReturnOp);
+        is_in_class!(OP_RETURN_186, C::ReturnOp);
+        is_in_class!(OP_RETURN_220, C::ReturnOp);
+        is_in_class!(OP_RETURN_255, C::ReturnOp);
 
-        //        is_in_class!(OP_PUSHNUM_NEG1, PushNum(-1));
+        is_in_class!(OP_PUSHNUM_NEG1, C::PushNum(-1));
+
+        is_in_class!(
+            OP_PUSHNUM_1,
+            C::PushNum(1 + all::OP_PUSHNUM_1.code as i32 - all::OP_PUSHNUM_1.code as i32)
+        );
+        is_in_class!(
+            OP_PUSHNUM_8,
+            C::PushNum(1 + all::OP_PUSHNUM_8.code as i32 - all::OP_PUSHNUM_1.code as i32)
+        );
+        is_in_class!(
+            OP_PUSHNUM_16,
+            C::PushNum(1 + all::OP_PUSHNUM_16.code as i32 - all::OP_PUSHNUM_1.code as i32)
+        );
+
+        is_in_class!(
+            OP_PUSHBYTES_1,
+            C::PushBytes(all::OP_PUSHBYTES_1.code as u32)
+        );
+        is_in_class!(
+            OP_PUSHBYTES_38,
+            C::PushBytes(all::OP_PUSHBYTES_38.code as u32)
+        );
+        is_in_class!(
+            OP_PUSHBYTES_75,
+            C::PushBytes(all::OP_PUSHBYTES_75.code as u32)
+        );
     }
 }
