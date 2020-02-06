@@ -680,7 +680,7 @@ impl All {
         self.code
     }
 
-    /// Indicates whether this opcode is illegal
+    /// Indicates whether this opcode fits in the IllegalOp class
     fn is_illegal_op(&self) -> bool {
         *self == all::OP_VERIF
             || *self == all::OP_VERNOTIF
@@ -701,12 +701,12 @@ impl All {
             || *self == all::OP_RSHIFT
     }
 
-    /// Indicates whether this is a no-op
+    /// Indicates whether this opcode fits in the NoOp class
     fn is_no_op(&self) -> bool {
         *self == all::OP_NOP || (all::OP_NOP1.code <= self.code && self.code <= all::OP_NOP10.code)
     }
 
-    /// Indicates whether this is a return op
+    /// Indicates whether this opcode fits in the ReturnOp class
     fn is_return_op(&self) -> bool {
         *self == all::OP_RESERVED
             || *self == all::OP_VER
@@ -716,7 +716,7 @@ impl All {
             || self.code >= all::OP_RETURN_186.code
     }
 
-    /// Indicates whether this is a postive pushnum opcode
+    /// Indicates whether this opcode fits in the PushNumm class
     fn is_push_num_positive(&self) -> bool {
         all::OP_PUSHNUM_1.code <= self.code && self.code <= all::OP_PUSHNUM_16.code
     }
