@@ -8,8 +8,8 @@
 // a defined format aleady:
 #![allow(non_camel_case_types)]
 
-//#[cfg(feature = "serde")]
-//use serde;
+#[cfg(feature = "serde")]
+use serde;
 
 use std::fmt;
 
@@ -731,6 +731,25 @@ impl From<u8> for All {
 
 display_from_debug!(All);
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for All {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+/// Empty stack is also FALSE
+pub static OP_FALSE: All = all::OP_PUSHBYTES_0;
+/// Number 1 is also TRUE
+pub static OP_TRUE: All = all::OP_PUSHNUM_1;
+/// previously called OP_NOP2
+pub static OP_NOP2: All = all::OP_CLTV;
+/// previously called OP_NOP3
+pub static OP_NOP3: All = all::OP_CSV;
+
 /// Broad categories of opcodes grouped by those with similar behavior
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Class {
@@ -749,6 +768,16 @@ pub enum Class {
 }
 
 display_from_debug!(Class);
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Class {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
 
 macro_rules! ordinary_opcode {
     ($($op:ident),*) => (
@@ -772,7 +801,7 @@ macro_rules! ordinary_opcode {
     );
 }
 
-// Ordinary opcodes - there should be 60 of these
+// Ordinary opcodes -- there should be 60 of these
 ordinary_opcode! {
       // pushdata
     OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4,
@@ -795,6 +824,14 @@ ordinary_opcode! {
     OP_RIPEMD160, OP_SHA1, OP_SHA256, OP_HASH160, OP_HASH256,
     OP_CODESEPARATOR, OP_CHECKSIG, OP_CHECKSIGVERIFY,
     OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY
+}
+
+impl Ordinary {
+    /// Encode as a byte
+    #[inline]
+    pub fn into_u8(&self) -> u8 {
+        *self as u8
+    }
 }
 
 #[cfg(test)]
