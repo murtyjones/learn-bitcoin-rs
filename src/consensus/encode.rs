@@ -124,6 +124,22 @@ impl error::Error for Error {
     }
 }
 
+#[doc(hidden)]
+#[doc(hidden)]
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Self {
+        Error::Io(error)
+    }
+}
+
+// TODO IMPLEMENT THIS:
+//#[doc(hidden)]
+//impl From<osbt::Error> for Error {
+//    fn from(error: psbt::Error) -> Self {
+//        Error::Psbt(error)
+//    }
+//}
+
 /// Data which can be encoded in a consensus-consistent way
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever

@@ -45,6 +45,7 @@ extern crate test;
 pub mod internal_macros;
 pub mod blockdata;
 pub mod consensus;
+pub mod network;
 pub mod util;
 
 pub use util::amount::Amount;
