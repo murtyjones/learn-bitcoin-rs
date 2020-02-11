@@ -42,3 +42,45 @@ user_enum! {
         Regtest <-> "regtest"
     }
 }
+
+impl Network {
+    /// Creates a `Network` from the magic bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bitcoin::network::constants::Network;
+    ///
+    /// assert_eq!(Some(Network::Bitcoin), Network::from_magic(0xD9B4BEF9));
+    /// assert_eq!(None, Network::from_magic(0xFFFFFFFF));
+    /// ```
+    pub fn from_magic(magic: u32) -> Option<Network> {
+        // Note: any new entries here must be added to `magic` below
+        match magic {
+            0xD9B4BEF9 => Some(Network::Bitcoin),
+            0x0709110B => Some(Network::Testnet),
+            0xDAB5BFFA => Some(Network::Regtest),
+            _ => None,
+        }
+    }
+
+    /// Return the network magic bytes, which should be encoded little-endian
+    /// at the start of every message
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bitcoin::network::constants::Network;
+    ///
+    /// let network = Network::Bitcoin;
+    /// assert_eq!(network.magic(), 0xD9B4BEF9);
+    /// ```
+    pub fn magic(&self) -> u32 {
+        // Note: any new entries here must be added to `magic` below
+        match *self {
+            Network::Bitcoin => 0xD9B4BEF9,
+            Network::Testnet => 0x0709110B,
+            Network::Regtest => 0xDAB5BFFA,
+        }
+    }
+}

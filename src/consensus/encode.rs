@@ -14,6 +14,7 @@
 //! endian decimals, etc.)
 
 use hashes::hex::ToHex;
+use std::io::Cursor;
 use std::{error, fmt, io};
 
 /// Encoding error
@@ -139,6 +140,13 @@ impl From<io::Error> for Error {
 //        Error::Psbt(error)
 //    }
 //}
+
+/// Encode an object into a vector
+pub fn serialize<T: Encodable + ?Sized>(data: &T) -> Vec<u8> {
+    let mut encoder = Cursor::new(vec![]);
+    data.consensus_encode(&mut encoder).unwrap();
+    encoder.into_inner()
+}
 
 /// Data which can be encoded in a consensus-consistent way
 pub trait Encodable {
