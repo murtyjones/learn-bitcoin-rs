@@ -27,7 +27,7 @@
 #![allow(bare_trait_objects)]
 #![allow(ellipsis_inclusive_range_patterns)]
 
-extern crate proc_macro;
+pub extern crate bitcoin_hashes as hashes;
 
 #[cfg(feature = "serde")]
 extern crate serde;
