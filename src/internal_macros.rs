@@ -1,5 +1,32 @@
 //! Macros for internal use in this library
 
+macro_rules! impl_consensus_encoding {
+        ($thing:ident, $($field:ident),+) => (
+            impl ::consensus::Encodable for $thing {
+                #[inline]
+                fn consensus_encode<S: ::std::io::Write>(
+                    &self,
+                    mut s: S,
+                ) -> Result<usize, ::consensus::encode::Error> {
+                    let mut len = 0;
+                    $(len += self.$field.consensus_encode(&mut s)?;)+
+                    Ok(len)
+                }
+            }
+
+            impl ::consensus::Decodable for $thing {
+                #[inline]
+                fn consensus_decode<D: ::std::io::Read>(
+                    mut d: D
+                ) -> Result<$thing, ::consensus::encode::Error> {
+                    Ok($thing {
+                        $($field: ::consensus::Decodable::consensus_decode(&mut d)?),+
+                    })
+                }
+            }
+        )
+}
+
 macro_rules! display_from_debug {
     ($thing:ident) => {
         impl fmt::Display for $thing {
