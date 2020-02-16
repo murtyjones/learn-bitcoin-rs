@@ -7,10 +7,11 @@ use std::error;
 use std::fmt;
 use std::io;
 
+pub mod address;
 pub mod constants;
 pub mod message_network;
-pub mod address;
 pub use self::address::Address;
+pub mod message;
 
 /// Network error
 #[derive(Debug)]

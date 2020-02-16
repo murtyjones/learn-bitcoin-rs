@@ -5,4 +5,6 @@
 
 pub mod encode;
 
-pub use self::encode::{Decodable, Encodable};
+pub use self::encode::{deserialize, deserialize_partial, serialize};
+pub use self::encode::{Decodable, Encodable, ReadExt, WriteExt};
+//pub use self::params::Params;
