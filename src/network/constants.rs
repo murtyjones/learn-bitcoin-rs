@@ -104,7 +104,7 @@ impl ServiceFlags {
     pub const COMPACT_FILTERS: ServiceFlags = ServiceFlags(1 << 6);
     /// Same as netowrk but only with respect to the last 2 days (288 blocks)
     pub const NETWORK_LIMITED: ServiceFlags = ServiceFlags(1 << 10);
-    
+
     /// Add [ServiceFlags] together.
     pub fn add(&mut self, other: ServiceFlags) -> ServiceFlags {
         self.0 |= other.0;
@@ -112,7 +112,7 @@ impl ServiceFlags {
     }
 
     /// Remove [ServiceFlags] from this.
-    /// 
+    ///
     /// Returns self.
     pub fn remove(&mut self, other: ServiceFlags) -> ServiceFlags {
         self.0 ^= other.0;
@@ -145,7 +145,7 @@ impl fmt::UpperHex for ServiceFlags {
 impl fmt::Display for ServiceFlags {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if *self == ServiceFlags::NONE {
-            return write!(f, "ServiceFlags(NONE");
+            return write!(f, "ServiceFlags(NONE)");
         }
 
         let mut flags: ServiceFlags = self.clone();
@@ -160,7 +160,7 @@ impl fmt::Display for ServiceFlags {
                     write!(f, stringify!($f))?;
                     flags.remove(ServiceFlags::$f);
                 }
-            }
+            };
         }
         write!(f, "ServicFlags(")?;
         write_flag!(NETWORK);
@@ -222,9 +222,7 @@ impl ops::BitXorAssign for ServiceFlags {
 
 impl Encodable for ServiceFlags {
     #[inline]
-    fn consensus_encode<S: io::Write>(
-        &self, mut s: S,
-    ) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
         self.0.consensus_encode(&mut s)
     }
 }
@@ -299,10 +297,13 @@ mod tests {
 
         flags |= ServiceFlags::WITNESS;
         assert_eq!(flags, ServiceFlags::WITNESS);
-        
+
         let mut flags2 = flags | ServiceFlags::GETUTXO;
         for f in all.iter() {
-            assert_eq!(flags2.has(*f), *f == ServiceFlags::WITNESS || *f == ServiceFlags::GETUTXO);
+            assert_eq!(
+                flags2.has(*f),
+                *f == ServiceFlags::WITNESS || *f == ServiceFlags::GETUTXO
+            );
         }
 
         flags2 ^= ServiceFlags::WITNESS;
@@ -318,6 +319,9 @@ mod tests {
         let flag = ServiceFlags::WITNESS | ServiceFlags::BLOOM | ServiceFlags::NETWORK;
         assert_eq!("ServiceFlags(NETWORK|BLOOM|WITNESS)", flag.to_string());
         let flag = ServiceFlags::WITNESS | 0xf0.into();
-        assert_eq!("ServiceFlags(WITNESS|COMPACT_FILTERS|0xb0)", flag.to_string());
+        assert_eq!(
+            "ServiceFlags(WITNESS|COMPACT_FILTERS|0xb0)",
+            flag.to_string()
+        );
     }
 }
