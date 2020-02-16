@@ -22,6 +22,7 @@ pub struct Address {
     pub port: u16,
 }
 
+/// Tor address format. Not supported.
 const ONION: [u16; 3] = [0xFD87, 0xD87E, 0xEB43];
 
 impl Address {
@@ -39,7 +40,8 @@ impl Address {
     }
 
     /// extract socket address from an address message
-    /// This will return io::Error ErrorKind::AddrNotAvailable if the message contains a Tor address.
+    /// This will return io::Error ErrorKind::AddrNotAvailable
+    /// if the message contains a Tor address.
     pub fn socket_addr(&self) -> Result<SocketAddr, io::Error> {
         let addr = &self.address;
         if addr[0..3] == ONION {
