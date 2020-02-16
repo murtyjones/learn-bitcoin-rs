@@ -99,7 +99,7 @@ impl ServiceFlags {
     /// Capable of supporting bloom-filtered connections
     pub const BLOOM: ServiceFlags = ServiceFlags(1 << 2);
     /// Can be asked for blocks and transactions including witness data
-    pub const WITNESS: ServiceFlags = ServiceFlags(1 << 2);
+    pub const WITNESS: ServiceFlags = ServiceFlags(1 << 3);
     /// See BIP157 and BIP158
     pub const COMPACT_FILTERS: ServiceFlags = ServiceFlags(1 << 6);
     /// Same as netowrk but only with respect to the last 2 days (288 blocks)
@@ -162,7 +162,7 @@ impl fmt::Display for ServiceFlags {
                 }
             };
         }
-        write!(f, "ServicFlags(")?;
+        write!(f, "ServiceFlags(")?;
         write_flag!(NETWORK);
         write_flag!(GETUTXO);
         write_flag!(BLOOM);
