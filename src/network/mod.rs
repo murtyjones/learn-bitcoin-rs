@@ -9,6 +9,8 @@ use std::io;
 
 pub mod constants;
 pub mod message_network;
+pub mod address;
+pub use self::address::Address;
 
 /// Network error
 #[derive(Debug)]

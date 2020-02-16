@@ -159,15 +159,15 @@ pub fn deserialize<'a, T: Decodable>(data: &'a [u8]) -> Result<T, Error> {
     if consumed == data.len() {
         Ok(rv)
     } else {
-        Err(Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
+        Err(Error::ParseFailed(
+            "data not consumed entirely when explicitly deserializing",
+        ))
     }
 }
 
 /// Deserializes an object from a vector and will not throw an error
 /// if the entire vector is not consumed
-pub fn deserialize_partial<'a, T: Decodable>(
-    data: &'a [u8],
-) -> Result<(T, usize), Error> {
+pub fn deserialize_partial<'a, T: Decodable>(data: &'a [u8]) -> Result<(T, usize), Error> {
     let mut decoder = Cursor::new(data);
     let rv = Decodable::consensus_decode(&mut decoder)?;
     let consumed = decoder.position() as usize;
@@ -361,6 +361,57 @@ impl Decodable for bool {
     #[inline]
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<bool, Error> {
         ReadExt::read_u8(&mut d).map(|n| n != 0)
+    }
+}
+
+// Arrays
+macro_rules! impl_array {
+    ( $size:expr ) => {
+        impl Encodable for [u8; $size] {
+            #[inline]
+            fn consensus_encode<S: WriteExt>(&self, mut s: S) -> Result<usize, Error> {
+                s.emit_slice(&self[..])?;
+                Ok(self.len())
+            }
+        }
+
+        impl Decodable for [u8; $size] {
+            #[inline]
+            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+                let mut ret = [0; $size];
+                d.read_slice(&mut ret)?;
+                Ok(ret)
+            }
+        }
+    };
+}
+
+impl_array!(2);
+impl_array!(4);
+impl_array!(8);
+impl_array!(12);
+impl_array!(16);
+impl_array!(32);
+impl_array!(33);
+
+impl Decodable for [u16; 8] {
+    #[inline]
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+        let mut res = [0; 8];
+        for i in 0..8 {
+            res[i] = Decodable::consensus_decode(&mut d)?;
+        }
+        Ok(res)
+    }
+}
+
+impl Encodable for [u16; 8] {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
+        for c in self.iter() {
+            c.consensus_encode(&mut s)?;
+        }
+        Ok(16)
     }
 }
 
