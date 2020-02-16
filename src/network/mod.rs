@@ -8,6 +8,7 @@ use std::fmt;
 use std::io;
 
 pub mod constants;
+pub mod message_network;
 
 /// Network error
 #[derive(Debug)]

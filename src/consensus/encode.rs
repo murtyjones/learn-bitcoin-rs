@@ -150,6 +150,31 @@ pub fn serialize<T: Encodable + ?Sized>(data: &T) -> Vec<u8> {
     encoder.into_inner()
 }
 
+/// Deserialize an object from a vector, will error if said deserialization
+/// does not consume the full vector
+pub fn deserialize<'a, T: Decodable>(data: &'a [u8]) -> Result<T, Error> {
+    let (rv, consumed) = deserialize_partial(data)?;
+
+    // Fail if data are not consumed entirely.
+    if consumed == data.len() {
+        Ok(rv)
+    } else {
+        Err(Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
+    }
+}
+
+/// Deserializes an object from a vector and will not throw an error
+/// if the entire vector is not consumed
+pub fn deserialize_partial<'a, T: Decodable>(
+    data: &'a [u8],
+) -> Result<(T, usize), Error> {
+    let mut decoder = Cursor::new(data);
+    let rv = Decodable::consensus_decode(&mut decoder)?;
+    let consumed = decoder.position() as usize;
+
+    Ok((rv, consumed))
+}
+
 /// Extensions of `Write` to encode data as per Bitcoin consensus
 pub trait WriteExt {
     /// Output a 64-bit uint
