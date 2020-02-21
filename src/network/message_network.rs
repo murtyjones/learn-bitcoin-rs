@@ -8,12 +8,10 @@ use std::io;
 
 use consensus::encode;
 use consensus::{Decodable, Encodable, ReadExt};
-use hashes::core::str::pattern::SearchStep::Reject;
 use hashes::sha256d;
 use network::address::Address;
 use network::constants::{self, ServiceFlags};
 use network::message::CommandString;
-use serde_json::error::ErrorCode;
 
 /// Some simple messages
 
@@ -43,6 +41,7 @@ pub struct VersionMessage {
 }
 
 impl VersionMessage {
+    /// Make a new version message
     pub fn new(
         services: ServiceFlags,
         timestamp: i64,
@@ -125,4 +124,15 @@ impl Decodable for RejectReason {
 
 /// Reject message might be sent by peers rejecting one of our messages
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct Reject {}
+pub struct Reject {
+    /// message type rejected
+    pub message: CommandString,
+    /// reason of rejection as code
+    pub ccode: RejectReason,
+    /// reason of rejection
+    pub reason: Cow<'static, str>,
+    /// reference to rejected item
+    pub hash: sha256d::Hash
+}
+
+impl_consensus_encoding!(Reject, message, ccode, reason, hash);

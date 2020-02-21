@@ -15,8 +15,13 @@
 
 use hashes::hex::ToHex;
 use std::io::{Cursor, Read, Write};
+use std::borrow::Cow;
 use std::{error, fmt, io, mem, u32};
+use hashes::{sha256d, Hash};
+// use hash_types::{BlockHash, FilterHash, TxMerkleNode};
 
+
+use network::address::Address;
 use util::endian;
 
 /// Encoding error
@@ -306,6 +311,9 @@ impl<R: Read> ReadExt for R {
     }
 }
 
+/// Maximum size, in bytes, of a vector we are allowed to decode
+pub const MAX_VEC_SIZE: usize = 4_000_000;
+
 /// Data which can be encoded in a consensus-consistent way
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever
@@ -319,6 +327,10 @@ pub trait Decodable: Sized {
     /// Decode an object with a well-defined format
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error>;
 }
+
+/// A variable-length unsigned integer
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+pub struct VarInt(pub u64);
 
 // Primitive types
 macro_rules! impl_int_encodable {
@@ -349,6 +361,82 @@ impl_int_encodable!(i16, read_i16, emit_i16);
 impl_int_encodable!(i32, read_i32, emit_i32);
 impl_int_encodable!(i64, read_i64, emit_i64);
 
+impl VarInt {
+    /// Gets the length of this VarInt when encoded.
+    /// Returns 1 for 0, 0xFC, 3 for 0xFD... (2^16-1), 5 for 0x10000...(2^32-1),
+    /// and 9 otherwise.
+    #[inline]
+    pub fn len(&self) -> usize {
+        match self.0 {
+            0 ... 0xFC => 1,      // u8
+            0xFC ... 0xFFFF => 3, // u16
+            0xFD ... 0xFFFF => 5,
+            _ => 9,
+        }
+    }
+}
+
+impl Encodable for VarInt {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
+        match self.0 {
+            0...0xFC => {
+                (self.0 as u8).consensus_encode(s)?;
+                Ok(1)
+            },
+            0xFD...0xFFFF => {
+                s.emit_u8(0xFD)?;
+                (self.0 as u16).consensus_encode(s)?;
+                Ok(3)
+            },
+            0x10000...0xFFFFFFFF => {
+                s.emit_u8(0xFE)?;
+                (self.0 as u32).consensus_encode(s)?;
+                Ok(5)
+            },
+            _ => {
+                s.emit_u8(0xFF)?;
+                (self.0 as u64).consensus_encode(s)?;
+                Ok(9)
+            },
+        }
+    }
+}
+
+impl Decodable for VarInt {
+    #[inline]
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+        let n = ReadExt::read_u8(&mut d)?;
+        match n {
+            0xFF => {
+                let x = ReadExt::read_u64(&mut d)?;
+                if x < 0x100000000 {
+                    Err(self::Error::NonMinimalVarInt)
+                } else {
+                    Ok(VarInt(x))
+                }
+            }
+            0xFE => {
+                let x = ReadExt::read_u32(&mut d)?;
+                if x < 0x10000 {
+                    Err(self::Error::NonMinimalVarInt)
+                } else {
+                    Ok(VarInt(x as u64))
+                }
+            }
+            0xFD => {
+                let x = ReadExt::read_u16(&mut d)?;
+                if x < 0xFD {
+                    Err(self::Error::NonMinimalVarInt)
+                } else {
+                    Ok(VarInt(x as u64))
+                }
+            }
+            n => Ok(VarInt(n as u64))
+        }
+    }
+}
+
 impl Encodable for bool {
     #[inline]
     fn consensus_encode<S: WriteExt>(&self, mut s: S) -> Result<usize, Error> {
@@ -363,6 +451,38 @@ impl Decodable for bool {
         ReadExt::read_u8(&mut d).map(|n| n != 0)
     }
 }
+
+// Strings
+impl Encodable for String {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
+        let b = self.as_bytes();
+        let vi_len = VarInt(b.len() as u64).consensus_encode(&mut s)?;
+        s.emit_slice(&b)?;
+        Ok(vi_len + b.len())
+    }
+}
+impl Decodable for String {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<String, Error> {
+        String::from_utf8(Decodable::consensus_decode(d)?)
+            .map_err(|_| self::Error::ParseFailed("String was not valid UTF-8"))
+    }
+}
+impl Encodable for Cow<'static, str> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
+        let b = self.as_bytes();
+        let vi_len = VarInt(b.len() as u64).consensus_encode(&mut s)?;
+        s.emit_slice(&b)?;
+        Ok(vi_len + b.len())
+    }
+}
+impl Decodable for Cow<'static, str> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Cow<'static, str>, Error> {
+        String::from_utf8(Decodable::consensus_decode(d)?)
+            .map_err(|_| self::Error::ParseFailed("String was not valid UTF-8"))
+            .map(Cow::Owned)
+    }
+}
+
 
 // Arrays
 macro_rules! impl_array {
@@ -412,6 +532,41 @@ impl Encodable for [u16; 8] {
             c.consensus_encode(&mut s)?;
         }
         Ok(16)
+    }
+}
+
+impl Encodable for Vec<u8> {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
+        let vi_len = VarInt(self.len() as u64).consensus_encode(&mut s)?;
+        s.emit_slice(&self)?;
+        Ok(vi_len + self.len())
+    }
+    
+}
+
+impl Decodable for Vec<u8> {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+        let len = VarInt::consensus_decode(&mut d)?.0 as usize;
+        if len > MAX_VEC_SIZE {
+            return Err(self::Error::OversizedVectorAllocation { requested: len, max: MAX_VEC_SIZE })
+        }
+        let mut ret = Vec::with_capacity(len);
+        ret.resize(len, 0);
+        d.read_slice(&mut ret)?;
+        Ok(ret)
+    }
+}
+
+impl Encodable for sha256d::Hash {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+        self.into_inner().consensus_encode(s)
+    }
+}
+
+impl Decodable for sha256d::Hash {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
     }
 }
 
