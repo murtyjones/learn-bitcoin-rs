@@ -141,7 +141,7 @@ impl_consensus_encoding!(Reject, message, ccode, reason, hash);
 mod tests {
     use super::VersionMessage;
 
-    use hashes::hex::FromHex;
+    use hashes::hex::{FromHex, ToHex};
     use network::constants::ServiceFlags;
 
     use consensus::encode::{deserialize, serialize};

@@ -535,6 +535,47 @@ impl Encodable for [u16; 8] {
     }
 }
 
+// Vectors
+macro_rules! impl_vec {
+    ($type: ty) => {
+        impl Encodable for Vec<$type> {
+            #[inline]
+            fn consensus_encode<S: io::Write>(
+                &self,
+                mut s: S,
+            ) -> Result<usize, Error> {
+                let mut len = 0;
+                len += VarInt(self.len() as u64).consensus_encode(&mut s)?;
+                for c in self.iter() {
+                    len += c.consensus_encode(&mut s)?;
+                }
+                Ok(len)
+            }
+        }
+
+        impl Decodable for Vec<$type> {
+            #[inline]
+            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+                let len = VarInt::consensus_decode(&mut d)?.0;
+                let byte_size = (len as usize)
+                                    .checked_mul(mem::size_of::<$type>())
+                                    .ok_or(self::Error::ParseFailed("Invalid length"))?;
+                if byte_size > MAX_VEC_SIZE {
+                    return Err(self::Error::OversizedVectorAllocation { requested: byte_size, max: MAX_VEC_SIZE })
+                }
+                let mut ret = Vec::with_capacity(len as usize);
+                for _ in 0..len {
+                    ret.push(Decodable::consensus_decode(&mut d)?);
+                }
+                Ok(ret)
+            }
+        }
+    }
+}
+
+impl_vec!(Vec<u8>);
+impl_vec!(u64);
+
 impl Encodable for Vec<u8> {
     #[inline]
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
